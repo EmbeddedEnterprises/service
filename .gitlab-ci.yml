@@ -1,0 +1,8 @@
+build-examples:
+  stage: build
+  script:
+    - burrow package
+  only:
+    - master
+  tags:
+    - burrow

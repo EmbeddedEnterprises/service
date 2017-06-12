@@ -1,5 +1,7 @@
 # service
 
+[![build status](http://gitlab.development.coffee/PKES-EE/Backend/service/badges/master/build.svg)](http://gitlab.development.coffee/PKES-EE/Backend/service/commits/master)
+
 The robµlab service library is a convenience wrapper for easy microservice creation.
 
 ---
