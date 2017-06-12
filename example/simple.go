@@ -19,7 +19,6 @@ import (
 	"github.com/jcelliott/turnpike"
 )
 
-
 var log *syslog.Writer
 
 func main() {

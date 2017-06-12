@@ -12,9 +12,9 @@ package service
 
 import (
 	"fmt"
+	"log/syslog"
 	"os"
 	"os/signal"
-	"log/syslog"
 
 	"github.com/jcelliott/turnpike"
 	flag "github.com/ogier/pflag"
@@ -78,7 +78,7 @@ func New(default_config Config) *Service {
 	srv := &Service{}
 	srv.name = name
 
-	srv.Logger, err = syslog.New(log_priority, "com.robulab." + name)
+	srv.Logger, err = syslog.New(log_priority, "com.robulab."+name)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating service: %s\n", err)
 		os.Exit(EXIT_SERVICE)
