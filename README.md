@@ -4,6 +4,18 @@ The robµlab service library is a convenience wrapper for easy microservice crea
 
 ---
 
+## How to add to your project?
+
+```
+$ burrow get git://robulab/service
+```
+
+And in your source code:
+
+```go
+import "robulab/service"
+```
+
 ## How to view logging output
 
 The robµlab service library uses the system logging daemon to store log files. You can use the following command under systemd machines to view a robµlab service's log messages:
@@ -30,4 +42,13 @@ You can view the logging output of the example by issuing
 
 ```
 $ journalctl --user -e -f -t com.robulab.example.simple
+```
+
+## Gitconfig
+
+Make sure your `~/.gitconfig` contains the following section
+
+```
+[url "ssh://git@gitlab.development.coffee:1023/PKES-EE/Backend"]
+        insteadOf = git://robulab
 ```
