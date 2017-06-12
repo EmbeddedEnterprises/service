@@ -1,0 +1,5 @@
+package: .
+import:
+- package: github.com/jcelliott/turnpike
+- package: github.com/ogier/pflag
+  version: master

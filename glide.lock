@@ -1,0 +1,14 @@
+hash: 91cd3a44c65914149f322c3e316a816cba2c8764bbc7fa2d6f50e86f39c45ba6
+updated: 2017-06-12T16:10:53.572655288+02:00
+imports:
+- name: github.com/gorilla/websocket
+  version: a91eba7f97777409bc2c443f5534d41dd20c5720
+- name: github.com/jcelliott/turnpike
+  version: fd62c756857599590cc1f661bd3e4e2ecf25cfd8
+- name: github.com/ogier/pflag
+  version: 45c278ab3607870051a2ea9040bb85fcb8557481
+- name: github.com/ugorji/go
+  version: 708a42d246822952f38190a8d8c4e6b16a0e600c
+  subpackages:
+  - codec
+testImports: []
