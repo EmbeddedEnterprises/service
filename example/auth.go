@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2017  EmbeddedEnterprises
  *     Fin Christensen <christensen.fin@gmail.com>,
+ *     Martin Koppehel <martin.koppehel@s.ovgu.de>,
  *
  * This file is part of robµlab.
  */
@@ -23,10 +24,13 @@ var log *syslog.Writer
 
 func main() {
 	srv := service.New(service.Config{
-		Name:          "example.simple",
-		Serialization: turnpike.MSGPACK,
+		Name:          "example.auth",
+		Serialization: turnpike.JSON,
 		Version:       "0.2.0",
-		Description:   "Simple example microservice for robµlab.",
+		Description:   "Simple example microservice for robµlab using authentication.",
+		User:          "WRONG", // set this using $SERVICE_USERNAME
+		Password:      "WRONG", // set this using $SERVICE_PASSWORD
+		Realm:         "test",
 		Url:           "ws://localhost:8000/ws",
 	})
 	log = srv.Logger

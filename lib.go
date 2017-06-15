@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2017  EmbeddedEnterprises
  *     Fin Christensen <christensen.fin@gmail.com>,
+ *     Martin Koppehel <martin.koppehel@st.ovgu.de>,
  *
  * This file is part of robµlab.
  */
@@ -11,6 +12,10 @@
 package service
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/syslog"
 	"os"
@@ -28,11 +33,17 @@ const (
 	EXIT_REGISTRATION
 )
 
+const USERNAME_ENV string = "SERVICE_USERNAME"
+const PASSWORD_ENV string = "SERVICE_PASSWORD"
+
 type Service struct {
 	name          string
 	serialization turnpike.Serialization
 	realm         string
 	url           string
+	username      string
+	password      string
+	use_auth      bool
 	Logger        *syslog.Writer
 	Client        *turnpike.Client
 }
@@ -45,6 +56,8 @@ type Config struct {
 	Serialization turnpike.Serialization
 	Url           string
 	Realm         string
+	User          string
+	Password      string
 }
 
 func New(default_config Config) *Service {
@@ -67,14 +80,14 @@ func New(default_config Config) *Service {
 
 	url := default_config.Url
 	if url == "" {
-		url = "ws://localhost:8000/ws"
+		url = "ws://communication.robulab.svc.cluster.local:8000/ws"
 	}
 
 	realm := default_config.Realm
 	if realm == "" {
-		realm = "realm1"
+		realm = "robulab"
 	}
-
+	
 	srv := &Service{}
 	srv.name = name
 
@@ -92,9 +105,25 @@ func New(default_config Config) *Service {
 	} else if serialization == turnpike.MSGPACK {
 		def_ser = "msgpack"
 	}
+
+	user := default_config.User
+	env_user := os.Getenv(USERNAME_ENV)
+	if env_user != "" {
+		user = env_user
+	}
+
+	password := default_config.Password
+	env_pass := os.Getenv(PASSWORD_ENV)
+
+	if env_pass != "" {
+		password = env_pass
+	}
+	
 	var cli_ver = flag.BoolP("version", "V", false, "prints the version")
 	var cli_ser = flag.StringP("serialization", "s", def_ser, "the value may be one of json or msgpack")
-	var cli_url = flag.StringP("url", "u", url, "the websocket url of the broker")
+	var cli_url = flag.StringP("broker-url", "b", url, "the websocket url of the broker")
+	var cli_usr = flag.StringP("user", "u", user, "the user to login as")
+	var cli_pwd = flag.StringP("password", "p", password, "the password to login with")
 	var cli_rlm = flag.StringP("realm", "r", realm, "the name of the realm to connect to")
 
 	flag.Parse()
@@ -116,13 +145,23 @@ func New(default_config Config) *Service {
 
 	srv.url = *cli_url
 	srv.realm = *cli_rlm
+	
+	srv.use_auth = true
+	if *cli_usr == "" || *cli_pwd == "" {
+		srv.use_auth = false
+	}
+	
+	srv.username = *cli_usr
+	srv.password = *cli_pwd
 
 	info_url := fmt.Sprintf("Using '%s' as connection url...", srv.url)
 	info_ser := fmt.Sprintf("Using '%s' as serialization type...", *cli_ser)
 	info_rlm := fmt.Sprintf("Using '%s' as realm...", srv.realm)
+	info_usr := fmt.Sprintf("Using '%s' as user-id...", srv.username)
 	srv.Logger.Info(info_url)
 	srv.Logger.Info(info_ser)
 	srv.Logger.Info(info_rlm)
+	srv.Logger.Info(info_usr)
 
 	return srv
 }
@@ -138,12 +177,47 @@ func (self *Service) Connect() {
 		os.Exit(EXIT_CONNECT)
 	}
 
+	if self.use_auth {
+		auth_methods := make(map[string]turnpike.AuthFunc)
+		auth_methods["wampcra"] = func(h, c map[string]interface{}) (string, map[string]interface{}, error) {
+			// use a standard WAMP-CRA authentication here
+			// we use the password as key for the HMAC SHA256.
+
+			challenge, ok := c["challenge"].(string)
+			extra := make(map[string]interface{})
+
+			if !ok {
+				self.Logger.Warning("no challenge data received")
+				return "", extra, errors.New("no challenge data received")
+			}
+
+
+			challenge_log := fmt.Sprintf("Got challenge: %s", challenge)
+			self.Logger.Info(challenge_log)
+			
+			mac := hmac.New(sha256.New, []byte(self.password))
+			mac.Write([]byte(challenge))
+			signature := mac.Sum(nil)
+
+			return base64.StdEncoding.EncodeToString(signature), extra, nil
+		}
+		
+		self.Client.Auth = auth_methods
+	}
 	self.Logger.Info("Connected to broker")
 
 	self.Logger.Debug("Trying to join realm...")
-	_, err = self.Client.JoinRealm(self.realm, nil)
+
+	var join_realm_details map[string]interface{}
+	if self.use_auth {
+		join_realm_details = make(map[string]interface{})
+		join_realm_details["authid"] = self.username
+		login_msg := fmt.Sprintf("Login: %s", join_realm_details["authid"])
+		self.Logger.Debug(login_msg)
+	}
+	_, err = self.Client.JoinRealm(self.realm, join_realm_details)
 	if err != nil {
-		s := fmt.Sprintf("Failed to connect service to broker: %s", err)
+		s := fmt.Sprintf("Failed to join realm: %s", err)
 		self.Logger.Emerg(s)
 		os.Exit(EXIT_CONNECT)
 	}

@@ -46,7 +46,7 @@ $ docker run -p 127.0.0.1:8080:8080 --name crossbar --rm crossbario/crossbar:lat
 The you can run the example service like this:
 
 ```
-$ burrow run --example simple -- -u ws://localhost:8080/ws
+$ burrow run --example simple -- -b ws://localhost:8080/ws
 ```
 
 You can view the logging output of the example by issuing
