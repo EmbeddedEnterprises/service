@@ -87,7 +87,7 @@ func New(default_config Config) *Service {
 	if realm == "" {
 		realm = "robulab"
 	}
-	
+
 	srv := &Service{}
 	srv.name = name
 
@@ -118,7 +118,7 @@ func New(default_config Config) *Service {
 	if env_pass != "" {
 		password = env_pass
 	}
-	
+
 	var cli_ver = flag.BoolP("version", "V", false, "prints the version")
 	var cli_ser = flag.StringP("serialization", "s", def_ser, "the value may be one of json or msgpack")
 	var cli_url = flag.StringP("broker-url", "b", url, "the websocket url of the broker")
@@ -145,12 +145,12 @@ func New(default_config Config) *Service {
 
 	srv.url = *cli_url
 	srv.realm = *cli_rlm
-	
+
 	srv.use_auth = true
 	if *cli_usr == "" || *cli_pwd == "" {
 		srv.use_auth = false
 	}
-	
+
 	srv.username = *cli_usr
 	srv.password = *cli_pwd
 
@@ -191,17 +191,16 @@ func (self *Service) Connect() {
 				return "", extra, errors.New("no challenge data received")
 			}
 
-
 			challenge_log := fmt.Sprintf("Got challenge: %s", challenge)
 			self.Logger.Info(challenge_log)
-			
+
 			mac := hmac.New(sha256.New, []byte(self.password))
 			mac.Write([]byte(challenge))
 			signature := mac.Sum(nil)
 
 			return base64.StdEncoding.EncodeToString(signature), extra, nil
 		}
-		
+
 		self.Client.Auth = auth_methods
 	}
 	self.Logger.Info("Connected to broker")
