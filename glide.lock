@@ -1,5 +1,5 @@
-hash: 91cd3a44c65914149f322c3e316a816cba2c8764bbc7fa2d6f50e86f39c45ba6
-updated: 2017-06-12T16:10:53.572655288+02:00
+hash: e60fb266012e51c47922b2b3f79b59f37f9dac20a5055fab1c9ee779f9549ed9
+updated: 2017-06-16T11:57:09.991202609+02:00
 imports:
 - name: github.com/gorilla/websocket
   version: a91eba7f97777409bc2c443f5534d41dd20c5720
@@ -7,6 +7,8 @@ imports:
   version: fd62c756857599590cc1f661bd3e4e2ecf25cfd8
 - name: github.com/ogier/pflag
   version: 45c278ab3607870051a2ea9040bb85fcb8557481
+- name: github.com/op/go-logging
+  version: 970db520ece77730c7e4724c61121037378659d9
 - name: github.com/ugorji/go
   version: 708a42d246822952f38190a8d8c4e6b16a0e600c
   subpackages:

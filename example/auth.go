@@ -12,15 +12,14 @@
 package main
 
 import (
-	"fmt"
-	"log/syslog"
 	"os"
 	"robulab/service"
 
 	"github.com/jcelliott/turnpike"
+	"github.com/op/go-logging"
 )
 
-var log *syslog.Writer
+var log *logging.Logger
 
 func main() {
 	srv := service.New(service.Config{
@@ -39,7 +38,7 @@ func main() {
 	log.Debug("Trying to register echo procedure in broker...")
 	var options = make(map[string]interface{})
 	if err := srv.Client.Register("com.robulab.example.echo", echo, options); err != nil {
-		log.Emerg(fmt.Sprintf("Failed to register echo procedure in broker: %s", err))
+		log.Criticalf("Failed to register echo procedure in broker: %s", err)
 		os.Exit(service.EXIT_REGISTRATION)
 	}
 	log.Info("Registered echo procedure")
@@ -54,10 +53,7 @@ func echo(
 	details map[string]interface{},
 ) *turnpike.CallResult {
 	log.Info("Procedure echo called")
-
-	msg := fmt.Sprintf("echo: %s", args...)
-	log.Info(msg)
-	fmt.Println(msg)
+	log.Infof("echo: %s", args...)
 
 	return nil
 }
