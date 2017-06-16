@@ -25,7 +25,7 @@ func main() {
 	srv := service.New(service.Config{
 		Name:          "example.auth",
 		Serialization: turnpike.JSON,
-		Version:       "0.2.0",
+		Version:       "0.3.0",
 		Description:   "Simple example microservice for robµlab using authentication.",
 		User:          "WRONG", // set this using $SERVICE_USERNAME
 		Password:      "WRONG", // set this using $SERVICE_PASSWORD
