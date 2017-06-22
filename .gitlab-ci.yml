@@ -1,8 +1,40 @@
-build-examples:
+stages:
+  - build
+  - test
+
+cache:
+  paths:
+    - vendor/
+
+before_script:
+  - mkdir -p /go/src/robulab
+  - mv "${CI_PROJECT_DIR}" /go/src/robulab
+  - cd /go/src/robulab/"${CI_PROJECT_NAME}"
+
+do_build:
   stage: build
-  script:
-    - burrow package
+  tags:
+    - test
   only:
     - master
+  image: docker.embedded.enterprises/gitlab-ci/burrow
+  script:
+    - burrow fetch
+    - burrow build
+    - mv /go/src/robulab/"${CI_PROJECT_NAME}" "${CI_PROJECT_DIR}"
+  artifacts:
+    paths:
+      - bin
+
+do_test:
+  stage: test
   tags:
-    - burrow
+    - test
+  only:
+    - master
+  image: docker.embedded.enterprises/gitlab-ci/burrow
+  script:
+    - burrow test
+    - mv /go/src/robulab/"${CI_PROJECT_NAME}" "${CI_PROJECT_DIR}"
+  dependencies:
+    - do_build
