@@ -1,5 +1,5 @@
 hash: e60fb266012e51c47922b2b3f79b59f37f9dac20a5055fab1c9ee779f9549ed9
-updated: 2017-06-16T11:57:09.991202609+02:00
+updated: 2017-11-07T14:22:00.995191905+01:00
 imports:
 - name: github.com/gorilla/websocket
   version: a91eba7f97777409bc2c443f5534d41dd20c5720
@@ -10,7 +10,7 @@ imports:
 - name: github.com/op/go-logging
   version: 970db520ece77730c7e4724c61121037378659d9
 - name: github.com/ugorji/go
-  version: 708a42d246822952f38190a8d8c4e6b16a0e600c
+  version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
   subpackages:
   - codec
 testImports: []

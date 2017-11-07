@@ -205,6 +205,9 @@ func (self *Service) Connect() {
 
 	if self.use_auth {
 		auth_methods := make(map[string]turnpike.AuthFunc)
+		auth_methods["ticket"] = func(_, _ map[string]interface{}) (string, map[string]interface{}, error) {
+			return self.password, make(map[string]interface{}), nil
+		}
 		auth_methods["wampcra"] = func(h, c map[string]interface{}) (string, map[string]interface{}, error) {
 			// use a standard WAMP-CRA authentication here
 			// we use the password as key for the HMAC SHA256.
@@ -247,7 +250,7 @@ func (self *Service) Connect() {
 	self.Logger.Info("Joined realm")
 }
 
-func (self Service) Run() {
+func (self *Service) Run() {
 	var err error
 
 	sigint_channel := make(chan os.Signal, 1)
