@@ -12,10 +12,10 @@
 package service
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"errors"
+	//"crypto/hmac"
+	//"crypto/sha256"
+	//"encoding/base64"
+	//"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -208,7 +208,11 @@ func (self *Service) Connect() {
 		auth_methods["ticket"] = func(_, _ map[string]interface{}) (string, map[string]interface{}, error) {
 			return self.password, make(map[string]interface{}), nil
 		}
-		auth_methods["wampcra"] = func(h, c map[string]interface{}) (string, map[string]interface{}, error) {
+
+		// wampcra is not suited for backend services but only for frontends
+		// when adding wampcra a backend service might try to authenticate as a frontend
+		// user which will lead to failure
+		/*auth_methods["wampcra"] = func(h, c map[string]interface{}) (string, map[string]interface{}, error) {
 			// use a standard WAMP-CRA authentication here
 			// we use the password as key for the HMAC SHA256.
 
@@ -227,7 +231,7 @@ func (self *Service) Connect() {
 			signature := mac.Sum(nil)
 
 			return base64.StdEncoding.EncodeToString(signature), extra, nil
-		}
+		}*/
 
 		self.Client.Auth = auth_methods
 	}
