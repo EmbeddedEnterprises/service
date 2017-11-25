@@ -15,7 +15,7 @@ do_build:
   stage: build
   only:
     - master
-  image: docker.pattig.rocks/public/ci-burrow
+  image: docker.pattig.rocks/robulab/ci-burrow
   script:
     - burrow fetch
     - burrow build
@@ -28,7 +28,7 @@ do_test:
   stage: test
   only:
     - master
-  image: docker.pattig.rocks/public/ci-burrow
+  image: docker.pattig.rocks/robulab/ci-burrow
   script:
     - burrow test
     - mv /go/src/robulab/"${CI_PROJECT_NAME}" "${CI_PROJECT_DIR}"
