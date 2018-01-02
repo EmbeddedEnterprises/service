@@ -282,3 +282,80 @@ func (self *Service) Run() {
 
 	self.Logger.Info("Bye")
 }
+
+type ErrorKind int
+
+const (
+	ErrorBadArgument ErrorKind = iota
+	ErrorNotAvailable
+	ErrorNotEnoughData
+	ErrorUnexpectedData
+	ErrorTooMuchData
+	ErrorOutOfRange
+	ErrorTimedOut
+	ErrorPermissionDenied
+	ErrorNotFound
+	ErrorUnreachableLineReached
+	ErrorThisWorksOnMyMachine
+	ErrorItsNotABugItsAFeature
+	ErrorAKittenDies
+)
+
+type Error struct {
+	kind  ErrorKind
+	inner error
+}
+
+func NewError(kind ErrorKind) *Error {
+	return &Error{
+		kind:  kind,
+		inner: nil,
+	}
+}
+
+func NewErrorFrom(kind ErrorKind, inner error) *Error {
+	return &Error{
+		kind:  kind,
+		inner: inner,
+	}
+}
+
+func (e *Error) Error() string {
+	var msg string
+
+	switch e.kind {
+	case ErrorBadArgument:
+		msg = "A given argument does not meet its requirements."
+	case ErrorNotAvailable:
+		msg = "A requested resource is not available."
+	case ErrorNotEnoughData:
+		msg = "The provided data is not enough."
+	case ErrorUnexpectedData:
+		msg = "The provided data is in an unexpected format."
+	case ErrorTooMuchData:
+		msg = "The provided data is too much."
+	case ErrorOutOfRange:
+		msg = "A given index is out of range."
+	case ErrorTimedOut:
+		msg = "A request has timed out."
+	case ErrorPermissionDenied:
+		msg = "The permission to a resource got denied."
+	case ErrorNotFound:
+		msg = "A given resource could not be found."
+	case ErrorUnreachableLineReached:
+		msg = "This code should not be reached as it is not implemented."
+	case ErrorThisWorksOnMyMachine:
+		msg = "Code that needs complicated state to work. Contact your system administrator for details."
+	case ErrorItsNotABugItsAFeature:
+		msg = "The current behavior is intended. If you did not expect this to happen, contact your system administrator."
+	case ErrorAKittenDies:
+		msg = "Something was nil..."
+	default:
+		msg = "Unknown error occured."
+	}
+
+	if e.inner != nil {
+		return fmt.Sprintf("%s\nInner Error: %s", msg, e.inner.Error())
+	}
+	return msg
+}
