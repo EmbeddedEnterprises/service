@@ -1,16 +1,16 @@
-hash: e60fb266012e51c47922b2b3f79b59f37f9dac20a5055fab1c9ee779f9549ed9
-updated: 2017-11-07T14:22:00.995191905+01:00
+hash: 342068c98f211eb98e4457ab4830189645511c092c3462b118272ab9ec294144
+updated: 2018-02-09T02:09:25.505500696+01:00
 imports:
 - name: github.com/gorilla/websocket
-  version: a91eba7f97777409bc2c443f5534d41dd20c5720
+  version: 4ac909741dfa57448bfadfdbca0cf7eeaa68f0e2
 - name: github.com/jcelliott/turnpike
-  version: fd62c756857599590cc1f661bd3e4e2ecf25cfd8
+  version: de9a4503e73c675401e8c345d73623aa3dcb98ac
 - name: github.com/ogier/pflag
   version: 45c278ab3607870051a2ea9040bb85fcb8557481
 - name: github.com/op/go-logging
   version: 970db520ece77730c7e4724c61121037378659d9
 - name: github.com/ugorji/go
-  version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
+  version: b5b949564861e43a03568a0b134c135cf318e5c8
   subpackages:
   - codec
 testImports: []

@@ -197,7 +197,7 @@ func (self *Service) Connect() {
 	var err error
 
 	self.Logger.Debug("Trying to connect to broker")
-	self.Client, err = turnpike.NewWebsocketClient(self.serialization, self.url, nil, nil)
+	self.Client, err = turnpike.NewWebsocketClient(self.serialization, self.url, nil, nil, nil)
 	if err != nil {
 		self.Logger.Criticalf("Failed to connect service to broker: %s", err)
 		os.Exit(EXIT_CONNECT)
