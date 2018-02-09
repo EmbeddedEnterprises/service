@@ -60,6 +60,6 @@ $ journalctl --user -e -f -t com.robulab.example.simple
 Make sure your `~/.gitconfig` contains the following section
 
 ```
-[url "ssh://git@gitlab.development.coffee:1023/PKES-EE/Backend"]
+[url "ssh://git@gitlab.pattig.rocks:1023/PKES-EE/Backend"]
         insteadOf = git://robulab
 ```
