@@ -261,25 +261,28 @@ func (self *Service) Run() {
 	signal.Notify(sigint_channel, os.Interrupt)
 
 	self.Logger.Info("Entering main loop")
-	fmt.Println("Press Ctrl-C to quit")
-	<-sigint_channel
+	fmt.Println("Send SIGINT to quit")
+	select {
+	case <-sigint_channel:
+		// linebreak after echoed ^C
+		fmt.Println()
+		self.Logger.Info("Received SIGINT, exiting")
+		err = self.Client.LeaveRealm()
+		if err != nil {
+			self.Logger.Criticalf("Error while running the service: %s", err)
+			os.Exit(EXIT_SERVICE)
+		}
+
+		err = self.Client.Close()
+		if err != nil {
+			self.Logger.Criticalf("Error while running the service: %s", err)
+			os.Exit(EXIT_SERVICE)
+		}
+
+	case <-self.Client.ReceiveDone:
+		self.Logger.Info("Connection lost, exiting")
+	}
 	self.Logger.Info("Leaving main loop")
-
-	// linebreak after echoed ^C
-	fmt.Println()
-
-	err = self.Client.LeaveRealm()
-	if err != nil {
-		self.Logger.Criticalf("Error while running the service: %s", err)
-		os.Exit(EXIT_SERVICE)
-	}
-
-	err = self.Client.Close()
-	if err != nil {
-		self.Logger.Criticalf("Error while running the service: %s", err)
-		os.Exit(EXIT_SERVICE)
-	}
-
 	self.Logger.Info("Bye")
 }
 
