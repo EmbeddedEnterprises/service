@@ -259,9 +259,11 @@ func (self *Service) Run() {
 
 	sigint_channel := make(chan os.Signal, 1)
 	signal.Notify(sigint_channel, os.Interrupt)
+	close_channel := make(chan bool, 1)
 
 	self.Logger.Info("Entering main loop")
 	fmt.Println("Send SIGINT to quit")
+	self.Client.ReceiveDone = close_channel
 	select {
 	case <-sigint_channel:
 		// linebreak after echoed ^C
@@ -279,7 +281,7 @@ func (self *Service) Run() {
 			os.Exit(EXIT_SERVICE)
 		}
 
-	case <-self.Client.ReceiveDone:
+	case <-close_channel:
 		self.Logger.Info("Connection lost, exiting")
 	}
 	self.Logger.Info("Leaving main loop")
