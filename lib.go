@@ -266,6 +266,52 @@ func (self *Service) Run() {
 	self.Logger.Info("Bye")
 }
 
+type RegistrationError struct {
+	ProcedureName string
+	Inner         error
+}
+
+type SubscribtionError struct {
+	Topic string
+	Inner error
+}
+
+type HandlerRegistration struct {
+	Handler turnpike.MethodHandler
+	Options map[string]interface{}
+}
+
+type EventSubscribtion struct {
+	Handler turnpike.EventHandler
+	Options map[string]interface{}
+}
+
+func (self *Service) RegisterAll(procedures map[string]HandlerRegistration) *RegistrationError {
+	for name, regr := range procedures {
+		if err := self.Client.Register(name, regr.Handler, regr.Options); err != nil {
+			return &RegistrationError{
+				ProcedureName: name,
+				Inner:         err,
+			}
+		}
+	}
+
+	return nil
+}
+
+func (self *Service) SubscribeAll(procedures map[string]EventSubscribtion) *SubscribtionError {
+	for topic, regr := range procedures {
+		if err := self.Client.Subscribe(topic, regr.Options, regr.Handler); err != nil {
+			return &SubscribtionError{
+				Topic: topic,
+				Inner: err,
+			}
+		}
+	}
+
+	return nil
+}
+
 type ErrorKind int
 
 const (

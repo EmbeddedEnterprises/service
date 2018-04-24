@@ -22,7 +22,7 @@ func main() {
 	srv := service.New(service.Config{
 		Name:          "example.simple",
 		Serialization: turnpike.MSGPACK,
-		Version:       "0.7.2",
+		Version:       "0.8.0",
 		Description:   "Simple example microservice for robµlab.",
 		Url:           "ws://localhost:8000/ws",
 	})
