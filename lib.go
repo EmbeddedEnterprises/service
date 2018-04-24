@@ -1,8 +1,6 @@
-// -*- mode: go; tab-width: 4; -*-
-
 /* service - robµlab convenience wrapper for easy microservice creation.
  *
- * Copyright (C) 2017  EmbeddedEnterprises
+ * Copyright (C) 2017-2018  EmbeddedEnterprises
  *     Fin Christensen <christensen.fin@gmail.com>,
  *     Martin Koppehel <martin.koppehel@st.ovgu.de>,
  *
@@ -12,10 +10,6 @@
 package service
 
 import (
-	//"crypto/hmac"
-	//"crypto/sha256"
-	//"encoding/base64"
-	//"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -37,6 +31,7 @@ const (
 const USERNAME_ENV string = "SERVICE_USERNAME"
 const PASSWORD_ENV string = "SERVICE_PASSWORD"
 const LOG_FORMAT_ENV string = "SERVICE_LOGFORMAT"
+const BROKER_URL_ENV string = "SERVICE_BROKER_URL"
 
 type Service struct {
 	name          string
@@ -69,7 +64,7 @@ func New(default_config Config) *Service {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n\n%s\n\nOptions:\n", os.Args[0], default_config.Description)
 		fmt.Fprintln(os.Stderr, "  -h, --help\n    \tprint this help message")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\n%s copyright © 2017  EmbeddedEnterprises\n", default_config.Name)
+		fmt.Fprintf(os.Stderr, "\n%s copyright © 2017-2018  EmbeddedEnterprises\n", default_config.Name)
 	}
 
 	//default values for service name, serialization, websocket URL and realm
@@ -79,8 +74,9 @@ func New(default_config Config) *Service {
 	}
 	serialization := default_config.Serialization
 	url := default_config.Url
-	if url == "" {
-		url = "ws://communication.robulab.svc.cluster.local:8000/ws"
+	env_url := os.Getenv(BROKER_URL_ENV)
+	if env_url != "" {
+		url = env_url
 	}
 	realm := default_config.Realm
 	if realm == "" {
@@ -136,6 +132,12 @@ func New(default_config Config) *Service {
 		srv.serialization = turnpike.MSGPACK
 	} else {
 		fmt.Printf("Invalid serialization type '%s'!\n", *cli_ser)
+		flag.Usage()
+		os.Exit(EXIT_ARGUMENT)
+	}
+
+	if *cli_url == "" {
+		fmt.Printf("Please provide a broker url!\n")
 		flag.Usage()
 		os.Exit(EXIT_ARGUMENT)
 	}
@@ -208,30 +210,6 @@ func (self *Service) Connect() {
 		auth_methods["ticket"] = func(_, _ map[string]interface{}) (string, map[string]interface{}, error) {
 			return self.password, make(map[string]interface{}), nil
 		}
-
-		// wampcra is not suited for backend services but only for frontends
-		// when adding wampcra a backend service might try to authenticate as a frontend
-		// user which will lead to failure
-		/*auth_methods["wampcra"] = func(h, c map[string]interface{}) (string, map[string]interface{}, error) {
-			// use a standard WAMP-CRA authentication here
-			// we use the password as key for the HMAC SHA256.
-
-			challenge, ok := c["challenge"].(string)
-			extra := make(map[string]interface{})
-
-			if !ok {
-				self.Logger.Warning("no challenge data received")
-				return "", extra, errors.New("no challenge data received")
-			}
-
-			self.Logger.Debugf("Got challenge: %s", challenge)
-
-			mac := hmac.New(sha256.New, []byte(self.password))
-			mac.Write([]byte(challenge))
-			signature := mac.Sum(nil)
-
-			return base64.StdEncoding.EncodeToString(signature), extra, nil
-		}*/
 
 		self.Client.Auth = auth_methods
 	}

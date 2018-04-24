@@ -1,5 +1,3 @@
-// -*- mode: go; tab-width: 4; -*-
-
 /* simple - robµlab microservice example
  *
  * Copyright (C) 2017  EmbeddedEnterprises
@@ -25,7 +23,7 @@ func main() {
 	srv := service.New(service.Config{
 		Name:          "example.auth",
 		Serialization: turnpike.JSON,
-		Version:       "0.3.0",
+		Version:       "0.7.2",
 		Description:   "Simple example microservice for robµlab using authentication.",
 		User:          "WRONG", // set this using $SERVICE_USERNAME
 		Password:      "WRONG", // set this using $SERVICE_PASSWORD
