@@ -10,8 +10,8 @@ package main
 
 import (
 	"os"
-	"robulab/service"
 
+	"github.com/embeddedenterprises/service"
 	"github.com/jcelliott/turnpike"
 	"github.com/op/go-logging"
 )

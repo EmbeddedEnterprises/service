@@ -8,23 +8,16 @@ The robµlab service library is a convenience wrapper for easy microservice crea
 
 ## How to add to your project?
 
-Unfortunately glide does not read `~/.gitconfig` for dependency resolving. Therefore we have to specify the import paths manually and cannot use `burrow get`.
-
-Add this to your `glide.yaml` file in your project
+Run this in your project
 
 ```
-import:
-  - package: robulab/service
-    repo: ssh://git@gitlab.development.coffee:1023/PKES-EE/Backend/service
-    version: ^0.1.0
+$ burrow get github.com/embeddedenterprises/service
 ```
 
-and run `burrow update` afterwards.
-
-And in your source code you can now import the library.
+and import the library in your sourcecode like this.
 
 ```go
-import "robulab/service"
+import "github.com/embeddedenterprises/service"
 ```
 
 ## How to view logging output
@@ -53,13 +46,4 @@ You can view the logging output of the example by issuing
 
 ```
 $ journalctl --user -e -f -t com.robulab.example.simple
-```
-
-## Gitconfig
-
-Make sure your `~/.gitconfig` contains the following section
-
-```
-[url "ssh://git@gitlab.pattig.rocks:1023/robulab/backend"]
-        insteadOf = git://robulab
 ```
