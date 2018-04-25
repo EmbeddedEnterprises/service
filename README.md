@@ -1,6 +1,4 @@
-# service
-
-[![build status](http://gitlab.pattig.rocks/robulab/Backend/service/badges/master/build.svg)](http://gitlab.pattig.rocks/robulab/Backend/service/commits/master)
+# service [![Latest Tag](https://img.shields.io/github/tag/EmbeddedEnterprises/service.svg)](https://github.com/EmbeddedEnterprises/service/releases) [![Build Status](https://travis-ci.org/EmbeddedEnterprises/service.svg?branch=master)](https://travis-ci.org/EmbeddedEnterprises/service) [![Go Report Card](https://goreportcard.com/badge/github.com/EmbeddedEnterprises/service)](https://goreportcard.com/report/github.com/EmbeddedEnterprises/service) [![GoDoc](https://godoc.org/github.com/EmbeddedEnterprises/service?status.svg)](https://godoc.org/github.com/EmbeddedEnterprises/service)
 
 The robµlab service library is a convenience wrapper for easy microservice creation.
 
