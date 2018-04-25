@@ -12,7 +12,7 @@ package main
 import (
 	"os"
 
-	"github.com/embeddedenterprises/service"
+	"github.com/EmbeddedEnterprises/service"
 	"github.com/jcelliott/turnpike"
 	"github.com/op/go-logging"
 )
