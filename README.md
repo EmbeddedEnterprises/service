@@ -12,10 +12,34 @@ Run this in your project
 $ burrow get github.com/embeddedenterprises/service
 ```
 
-and import the library in your sourcecode like this.
+and use the library in your sourcecode like this.
 
 ```go
-import "github.com/embeddedenterprises/service"
+package main
+
+import (
+	"os"
+
+	"github.com/EmbeddedEnterprises/service"
+	"github.com/jcelliott/turnpike"
+	"github.com/op/go-logging"
+)
+
+func main() {
+	srv := service.New(service.Config{
+		Name:          "example",
+		Serialization: turnpike.MSGPACK,
+		Version:       "0.1.0",
+		Description:   "Simple example microservice from the documentation.",
+		URL:           "ws://localhost:8000/ws",
+	})
+	srv.Connect()
+
+	// register and subscribe here
+
+	srv.Run()
+	os.Exit(service.ExitSuccess)
+}
 ```
 
 ## How to view logging output

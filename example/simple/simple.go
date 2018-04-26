@@ -24,7 +24,7 @@ func main() {
 		Serialization: turnpike.MSGPACK,
 		Version:       "0.8.0",
 		Description:   "Simple example microservice for robµlab.",
-		Url:           "ws://localhost:8000/ws",
+		URL:           "ws://localhost:8000/ws",
 	})
 	log = srv.Logger
 	srv.Connect()
@@ -33,12 +33,12 @@ func main() {
 	var options = make(map[string]interface{})
 	if err := srv.Client.Register("com.robulab.example.echo", echo, options); err != nil {
 		log.Criticalf("Failed to register echo procedure in broker: %s", err)
-		os.Exit(service.EXIT_REGISTRATION)
+		os.Exit(service.ExitRegistration)
 	}
 	log.Info("Registered echo procedure")
 
 	srv.Run()
-	os.Exit(service.EXIT_SUCCESS)
+	os.Exit(service.ExitSuccess)
 }
 
 func echo(
