@@ -84,29 +84,30 @@ type Config struct {
 // The configuration can be overridden with command line arguments or environment variables.
 // The main function of your microservice will most likely look like this:
 //
-// ```go
-// func main() {
-// 	srv := service.New(service.Config{
-// 		Name:          "example",
-// 		Serialization: turnpike.MSGPACK,
-// 		Version:       "0.1.0",
-// 		Description:   "Simple example microservice from the documentation.",
-// 		URL:           "ws://localhost:8000/ws",
-// 	})
-// 	srv.Connect()
+// 	func main() {
+// 		srv := service.New(service.Config{
+// 			Name:          "example",
+// 			Serialization: turnpike.MSGPACK,
+// 			Version:       "0.1.0",
+// 			Description:   "Simple example microservice from the documentation.",
+// 			URL:           "ws://localhost:8000/ws",
+// 		})
+// 		srv.Connect()
 //
-// 	// register and subscribe here
+// 		// register and subscribe here
 //
-// 	srv.Run()
-// 	os.Exit(service.ExitSuccess)
-// }
-// ```
+// 		srv.Run()
+// 		os.Exit(service.ExitSuccess)
+// 	}
 //
 // You can look in the `examples` of the source repository for a more detailed example.
 //
 // This function can exit the program early when
+//
 // 1. A version print was requested by the command line interface.
+//
 // 2. An error occurred while parsing the command line arguments.
+//
 // 3. An internal error occurrs that cannot be recovered.
 func New(defaultConfig Config) *Service {
 	var err error
@@ -250,7 +251,9 @@ func New(defaultConfig Config) *Service {
 // Connect establishes a connection with the broker and must be called before `Run`!
 //
 // This function may exit the program early when
+//
 // 1. Logger creation failed.
+//
 // 2. The client failed to join the realm.
 func (srv *Service) Connect() {
 	var err error
@@ -294,7 +297,9 @@ func (srv *Service) Connect() {
 // be only called once.
 //
 // This function can exit the program early when
+//
 // 1. The client failed to leave the realm.
+//
 // 2. The client connection failed to close.
 func (srv *Service) Run() {
 	var err error
@@ -363,22 +368,20 @@ type EventSubscription struct {
 // RegisterAll can be used to register multiple remote procedure calls at once.
 // You can use it like this:
 //
-// ```go
-// options := make(map[string]interface{})
-// procedures := map[string]service.HandlerRegistration{
-// 	"example.get_magic":      service.HandlerRegistration{handler.GetMagic, options},
-// 	"example.do_stuff":       service.HandlerRegistration{handler.DoStuff, options},
-// 	"example.set_something":  service.HandlerRegistration{handler.SetSomething, options},
-// }
-// if err := util.App.RegisterAll(procedures); err != nil {
-// 	util.Log.Criticalf(
-// 		"Failed to register procedure '%s' in broker: %s",
-// 		err.ProcedureName,
-// 		err,
-// 	)
-// 	os.Exit(service.EXIT_REGISTRATION)
-// }
-// ```
+// 	options := make(map[string]interface{})
+// 	procedures := map[string]service.HandlerRegistration{
+// 		"example.get_magic":      service.HandlerRegistration{handler.GetMagic, options},
+// 		"example.do_stuff":       service.HandlerRegistration{handler.DoStuff, options},
+// 		"example.set_something":  service.HandlerRegistration{handler.SetSomething, options},
+// 	}
+// 	if err := util.App.RegisterAll(procedures); err != nil {
+// 		util.Log.Criticalf(
+// 			"Failed to register procedure '%s' in broker: %s",
+// 			err.ProcedureName,
+// 			err,
+// 		)
+// 		os.Exit(service.EXIT_REGISTRATION)
+// 	}
 func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *RegistrationError {
 	for name, regr := range procedures {
 		if err := srv.Client.Register(name, regr.Handler, regr.Options); err != nil {
@@ -395,21 +398,20 @@ func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *Regi
 // SubscribeAll can be used to subscribe to multiple topics at once.
 // You can use it like this:
 //
-// ```go
-// options := make(map[string]interface{})
-// procedures := map[string]service.HandlerRegistration{
-// 	"example.goo_happened":   service.EventSubscriptions{handler.GooHappened, options},
-// 	"example.gesus_joined":   service.EventSubscriptions{handler.GesusJoined, options},
-// 	"example.no_more_mate":   service.EventSubscriptions{handler.NoMoreMate, options},
-// }
-// if err := util.App.SubscribeAll(procedures); err != nil {
-// 	util.Log.Criticalf(
-// 		"Failed to subscribe to topic '%s' in broker: %s",
-// 		err.Topic,
-// 		err,
-// 	)
-// 	os.Exit(service.EXIT_REGISTRATION)
-// ```
+// 	options := make(map[string]interface{})
+// 	procedures := map[string]service.HandlerRegistration{
+// 		"example.goo_happened":   service.EventSubscriptions{handler.GooHappened, options},
+// 		"example.gesus_joined":   service.EventSubscriptions{handler.GesusJoined, options},
+// 		"example.no_more_mate":   service.EventSubscriptions{handler.NoMoreMate, options},
+// 	}
+// 	if err := util.App.SubscribeAll(procedures); err != nil {
+// 		util.Log.Criticalf(
+// 			"Failed to subscribe to topic '%s' in broker: %s",
+// 			err.Topic,
+// 			err,
+// 		)
+// 		os.Exit(service.EXIT_REGISTRATION)
+// 	}
 func (srv *Service) SubscribeAll(procedures map[string]EventSubscription) *SubscriptionError {
 	for topic, regr := range procedures {
 		if err := srv.Client.Subscribe(topic, regr.Options, regr.Handler); err != nil {
