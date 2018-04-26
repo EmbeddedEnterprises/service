@@ -445,7 +445,7 @@ const (
 	// ErrorTooMuchData indicates that the provided data is too much.
 	ErrorTooMuchData
 
-	// ErrorTimedOut indicates that a given index is out of range.
+	// ErrorOutOfRange indicates that a given index is out of range.
 	ErrorOutOfRange
 
 	// ErrorTimedOut indicates that a request has timed out.
