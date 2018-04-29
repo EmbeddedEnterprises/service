@@ -10,7 +10,10 @@
 package service
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -54,8 +57,27 @@ const EnvLogFormat string = "SERVICE_LOGFORMAT"
 // EnvBrokerURL defines the environment variable name for the broker url definition.
 const EnvBrokerURL string = "SERVICE_BROKER_URL"
 
+// EnvRealm defines the environment variable name for the realm definition.
+const EnvRealm string = "SERVICE_REALM"
+
+// EnvSerialization defines the environment variable name for the serialization definition.
+// Possible values are json and msgpack
+const EnvSerialization string = "SERVICE_SERIALIZATION"
+
+// EnvTlsClientCertFile defines the environment variable name for the TLS client certificate
+// public key to present to the router.
+const EnvTlsClientCertFile string = "TLS_CLIENT_CERT"
+
+// EnvTlsClientKeyFile defines the environment variable name for the TLS client certificate
+// private key to present to the router.
+const EnvTlsClientKeyFile string = "TLS_CLIENT_KEY"
+
+// EnvTlsServerCertFile defines the environment variable name for the TLS server certificate
+// public key to verify the server certificate against.
+const EnvTlsServerCertFile string = "TLS_SERVER_CERT"
+
 // Version defines the git tag this code is built with
-const Version string = "0.10.0"
+const Version string = "0.11.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
@@ -69,6 +91,9 @@ type Service struct {
 	username      string
 	password      string
 	useAuth       bool
+	useTls        bool
+	serverCert    *x509.CertPool
+	clientCert    *tls.Certificate
 	Logger        *logging.Logger
 	Client        *client.Client
 }
@@ -76,14 +101,69 @@ type Service struct {
 // Config holds the default configuration that is applied to a `Service` instance when the configuration
 // is not overridden by a cli argument or an environment variable. The cli argument always has priority!
 type Config struct {
-	Name          string
-	Version       string
-	Description   string
-	Serialization serialize.Serialization
-	URL           string
-	Realm         string
-	User          string
-	Password      string
+	Name              string
+	Version           string
+	Description       string
+	Serialization     serialize.Serialization
+	URL               string
+	Realm             string
+	User              string
+	Password          string
+	TLSClientCertFile string
+	TLSClientKeyFile  string
+	TLSServerCertFile string
+}
+
+// This function allows to query environment variables with default values.
+func overwriteEnv(defaultValue string, envVar string) string {
+	envValue := os.Getenv(envVar)
+	if envValue != "" {
+		return envValue
+	}
+	return defaultValue
+}
+
+func ensureFileExists(fid, fname string, srv *Service) {
+	if _, err := os.Stat(fname); os.IsNotExist(err) {
+		srv.Logger.Errorf("Error validating %s: file %s doesn't exist! Exiting.\n", fid, fname)
+		os.Exit(ExitArgument)
+	}
+}
+
+func setupLogger(srv *Service) {
+	// setup logging library
+	var err error
+	srv.Logger, err = logging.GetLogger("com.robulab." + srv.name)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating logger: %s\n", err)
+		os.Exit(ExitService)
+	}
+
+	// write to Stderr to keep Stdout free for data output
+	backend := logging.NewLogBackend(os.Stderr, "", 0)
+
+	// read an environment variable controlling the log format
+	// possibilities are "k8s" or "cluster" or "machine" for a machine readable format
+	// and "debug" or "human" for a human readable format (default)
+	// the values are case insensitive
+	var logFormat logging.Formatter
+	envLogFormat := strings.ToLower(os.Getenv(EnvLogFormat))
+	switch envLogFormat {
+	case "", "human", "debug":
+		logFormat, err = logging.NewStringFormatter(`%{color}[%{level:-8s}] %{time:15:04:05.000} %{longpkg}@%{shortfile}%{color:reset} -- %{message}`)
+	case "k8s", "cluster", "machine":
+		logFormat, err = logging.NewStringFormatter(`[%{level:-8s}] %{time:2006-01-02T15:04:05.000} %{shortfunc} -- %{message}`)
+	default:
+		fmt.Fprintf(os.Stderr, "Failed to setup log format: invalid format %s", envLogFormat)
+		os.Exit(ExitArgument)
+	}
+	if err != nil {
+		srv.Logger.Criticalf("Failed to create logging format, shutting down: %s", err)
+		os.Exit(ExitArgument)
+	}
+
+	backendFormatted := logging.NewBackendFormatter(backend, logFormat)
+	logging.SetBackend(backendFormatted)
 }
 
 // New creates a new service instance from the provided default configuration.
@@ -116,8 +196,6 @@ type Config struct {
 //
 // 3. An internal error occurrs that cannot be recovered.
 func New(defaultConfig Config) *Service {
-	var err error
-
 	// additional usage information
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n\n%s\n\nOptions:\n", os.Args[0], defaultConfig.Description)
@@ -131,21 +209,8 @@ func New(defaultConfig Config) *Service {
 	if name == "" {
 		name = "example"
 	}
+
 	serialization := defaultConfig.Serialization
-	url := defaultConfig.URL
-	envURL := os.Getenv(EnvBrokerURL)
-	if envURL != "" {
-		url = envURL
-	}
-	realm := defaultConfig.Realm
-	if realm == "" {
-		realm = "robulab"
-	}
-
-	// create a new service object on the heap
-	srv := &Service{}
-	srv.name = name
-
 	// translate serialization enums to strings to allow CLI parsing
 	var defSer string
 	if serialization == client.JSON {
@@ -156,16 +221,14 @@ func New(defaultConfig Config) *Service {
 
 	// fetch username and password from environment variables overwriting
 	// the default values
-	user := defaultConfig.User
-	envUser := os.Getenv(EnvUsername)
-	if envUser != "" {
-		user = envUser
-	}
-	password := defaultConfig.Password
-	envPass := os.Getenv(EnvPassword)
-	if envPass != "" {
-		password = envPass
-	}
+	url := overwriteEnv(defaultConfig.URL, EnvBrokerURL)
+	realm := overwriteEnv(defaultConfig.Realm, EnvRealm)
+	defSer = overwriteEnv(defSer, EnvSerialization)
+	user := overwriteEnv(defaultConfig.User, EnvUsername)
+	password := overwriteEnv(defaultConfig.Password, EnvPassword)
+	clientCertFile := overwriteEnv(defaultConfig.TLSClientCertFile, EnvTlsClientCertFile)
+	clientKeyFile := overwriteEnv(defaultConfig.TLSClientKeyFile, EnvTlsClientKeyFile)
+	serverCertFile := overwriteEnv(defaultConfig.TLSServerCertFile, EnvTlsServerCertFile)
 
 	// build the command line interface, allow to override many default values
 	var cliVer = flag.BoolP("version", "V", false, "prints the version")
@@ -174,6 +237,9 @@ func New(defaultConfig Config) *Service {
 	var cliUsr = flag.StringP("user", "u", user, "the user to login as")
 	var cliPwd = flag.StringP("password", "p", password, "the password to login with")
 	var cliRlm = flag.StringP("realm", "r", realm, "the name of the realm to connect to")
+	var cliCCF = flag.String("tls-client-cert-file", clientCertFile, "TLS client public key file")
+	var cliCKF = flag.String("tls-client-key-file", clientKeyFile, "TLS client private key file")
+	var cliSCF = flag.String("tls-server-cert-file", serverCertFile, "TLS server public key file")
 
 	// parse the command line
 	flag.Parse()
@@ -185,19 +251,24 @@ func New(defaultConfig Config) *Service {
 		os.Exit(ExitSuccess)
 	}
 
+	// create a new service object on the heap
+	srv := &Service{}
+	srv.name = name
+	setupLogger(srv)
+
 	// translate the serialization from the CLI to nexus enum
 	if *cliSer == "json" {
 		srv.serialization = client.JSON
 	} else if *cliSer == "msgpack" {
 		srv.serialization = client.MSGPACK
 	} else {
-		fmt.Printf("Invalid serialization type '%s'!\n", *cliSer)
+		srv.Logger.Errorf("Invalid serialization type '%s'!", *cliSer)
 		flag.Usage()
 		os.Exit(ExitArgument)
 	}
 
 	if *cliURL == "" {
-		fmt.Printf("Please provide a broker url!\n")
+		srv.Logger.Error("Please provide a broker url!")
 		flag.Usage()
 		os.Exit(ExitArgument)
 	}
@@ -206,52 +277,77 @@ func New(defaultConfig Config) *Service {
 	srv.url = *cliURL
 	srv.realm = *cliRlm
 	srv.useAuth = true
-	if *cliUsr == "" || *cliPwd == "" {
-		srv.useAuth = false
+
+	// when wss:// is set, we are using TLS to secure the connection.
+	if strings.HasPrefix(srv.url, "wss://") {
+		srv.useTls = true
+		if *cliSCF == "" {
+			srv.Logger.Warning("Server Certificate/CA not set, disabling verification!")
+			srv.serverCert = nil
+		} else {
+			ensureFileExists("TLS server public key", *cliSCF, srv)
+			srv.serverCert = x509.NewCertPool()
+			certPEM, err := ioutil.ReadFile(*cliSCF)
+			if err != nil {
+				srv.Logger.Errorf("Failed to load TLS server public key: %s", err)
+				os.Exit(ExitArgument)
+			}
+			if !srv.serverCert.AppendCertsFromPEM(certPEM) {
+				srv.Logger.Error("Failed to import server certificate/CA to trust!")
+				os.Exit(ExitArgument)
+			}
+		}
+
+		if *cliCCF == "" || *cliCKF == "" {
+			srv.Logger.Info("TLS client certificate not provided, falling back to ticket auth")
+			srv.clientCert = nil
+			if *cliUsr == "" || *cliPwd == "" {
+				srv.Logger.Warning("Missing username/password, disabling authentication completely.")
+				srv.useAuth = false
+			}
+			srv.username = *cliUsr
+			srv.password = *cliPwd
+		} else {
+			ensureFileExists("TLS client public key", *cliCCF, srv)
+			ensureFileExists("TLS client private key", *cliCKF, srv)
+			srv.Logger.Info("Loading TLS client certificate")
+			cert, err := tls.LoadX509KeyPair(*cliCCF, *cliCKF)
+			if err != nil {
+				srv.Logger.Errorf("Failed to load TLS client certificate: %s", err)
+				os.Exit(ExitArgument)
+			}
+			srv.clientCert = &cert
+		}
+	} else {
+		// We are not running against a TLS secured endpoint, so print a warning if a client certificate
+		// has been set. It's likely NOT what was intended.
+		if *cliCCF != "" || *cliCKF != "" {
+			srv.Logger.Warning("TLS authentication only available when connecting via TLS!")
+		}
+
+		// Check for regular ticket authentication.
+		if *cliUsr == "" || *cliPwd == "" {
+			srv.Logger.Warning("Missing username/password, disabling authentication completely.")
+			srv.useAuth = false
+		}
+		srv.username = *cliUsr
+		srv.password = *cliPwd
 	}
-	srv.username = *cliUsr
-	srv.password = *cliPwd
-
-	// setup logging library
-
-	srv.Logger, err = logging.GetLogger("com.robulab." + name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating logger: %s\n", err)
-		os.Exit(ExitService)
-	}
-
-	// write to Stderr to keep Stdout free for data output
-	backend := logging.NewLogBackend(os.Stderr, "", 0)
-
-	// read an environment variable controlling the log format
-	// possibilities are "k8s" or "cluster" or "machine" for a machine readable format
-	// and "debug" or "human" for a human readable format (default)
-	// the values are case insensitive
-	var logFormat logging.Formatter
-	envLogFormat := strings.ToLower(os.Getenv(EnvLogFormat))
-	switch envLogFormat {
-	case "", "human", "debug":
-		logFormat, err = logging.NewStringFormatter(`%{color}[%{level:-8s}] %{time:15:04:05.000} %{longpkg}@%{shortfile}%{color:reset} -- %{message}`)
-	case "k8s", "cluster", "machine":
-		logFormat, err = logging.NewStringFormatter(`[%{level:-8s}] %{time:2006-01-02T15:04:05.000} %{shortfunc} -- %{message}`)
-	default:
-		fmt.Fprintf(os.Stderr, "Failed to setup log format: invalid format %s", envLogFormat)
-		os.Exit(ExitService)
-	}
-	if err != nil {
-		srv.Logger.Criticalf("Failed to create logging format, shutting down: %s", err)
-		os.Exit(ExitService)
-	}
-
-	backendFormatted := logging.NewBackendFormatter(backend, logFormat)
-	logging.SetBackend(backendFormatted)
 
 	srv.Logger.Info("Hello")
+	srv.Logger.Infof("%ssing TLS.", map[bool]string{true: "U", false: "Not u"}[srv.useTls])
 	srv.Logger.Infof("Using '%s' as connection url...", srv.url)
 	srv.Logger.Infof("Using '%s' as serialization type...", *cliSer)
 	srv.Logger.Infof("Using '%s' as realm...", srv.realm)
-	srv.Logger.Infof("Using '%s' as user-id...", srv.username)
-
+	if !srv.useAuth {
+		srv.Logger.Info("No authentication configured...")
+	} else {
+		if srv.username != "" && srv.password != "" {
+			srv.Logger.Infof("Using '%s' as user-id...", srv.username)
+		} else {
+			srv.Logger.Info("Using TLS client authentication...")
+		}
+	}
 	return srv
 }
 
@@ -266,11 +362,28 @@ func (srv *Service) Connect() {
 	var err error
 
 	srv.Logger.Debug("Trying to connect to broker")
+	var tlsCfg *tls.Config
+	if srv.useTls {
+		tlsCfg = &tls.Config{
+			InsecureSkipVerify: false,
+		}
+
+		if srv.serverCert == nil {
+			tlsCfg.InsecureSkipVerify = true
+		} else {
+			tlsCfg.RootCAs = srv.serverCert
+		}
+
+		if srv.clientCert != nil {
+			tlsCfg.Certificates = append(tlsCfg.Certificates, *srv.clientCert)
+		}
+	}
 
 	cfg := client.ClientConfig{
 		Realm:           srv.realm,
 		Serialization:   srv.serialization,
 		ResponseTimeout: 5 * time.Second,
+		TlsCfg:          tlsCfg,
 	}
 
 	if srv.useAuth {
@@ -280,8 +393,14 @@ func (srv *Service) Connect() {
 		cfg.HelloDetails = helloDetails
 
 		authMethods := make(map[string]client.AuthFunc)
-		authMethods["ticket"] = func(_ *wamp.Challenge) (string, wamp.Dict) {
-			return srv.password, wamp.Dict{}
+		if srv.useTls && srv.clientCert != nil {
+			authMethods["tls"] = func(_ *wamp.Challenge) (string, wamp.Dict) {
+				return "", wamp.Dict{}
+			}
+		} else {
+			authMethods["ticket"] = func(_ *wamp.Challenge) (string, wamp.Dict) {
+				return srv.password, wamp.Dict{}
+			}
 		}
 		cfg.AuthHandlers = authMethods
 	}
