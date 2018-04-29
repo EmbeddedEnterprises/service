@@ -357,7 +357,7 @@ type EventSubscription struct {
 // RegisterAll can be used to register multiple remote procedure calls at once.
 // You can use it like this:
 //
-// 	options := make(map[string]interface{})
+// 	options := wamp.Dict{}
 // 	procedures := map[string]service.HandlerRegistration{
 // 		"example.get_magic":      service.HandlerRegistration{handler.GetMagic, options},
 // 		"example.do_stuff":       service.HandlerRegistration{handler.DoStuff, options},
@@ -387,7 +387,7 @@ func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *Regi
 // SubscribeAll can be used to subscribe to multiple topics at once.
 // You can use it like this:
 //
-// 	options := make(map[string]interface{})
+// 	options := wamp.Dict{}
 // 	events := map[string]service.HandlerRegistration{
 // 		"example.goo_happened":   service.EventSubscriptions{handler.GooHappened, options},
 // 		"example.gesus_joined":   service.EventSubscriptions{handler.GesusJoined, options},
