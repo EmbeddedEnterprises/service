@@ -14,8 +14,11 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
-	"github.com/jcelliott/turnpike"
+	"github.com/gammazero/nexus/client"
+	"github.com/gammazero/nexus/transport/serialize"
+	"github.com/gammazero/nexus/wamp"
 	flag "github.com/ogier/pflag"
 	"github.com/op/go-logging"
 )
@@ -51,20 +54,23 @@ const EnvLogFormat string = "SERVICE_LOGFORMAT"
 // EnvBrokerURL defines the environment variable name for the broker url definition.
 const EnvBrokerURL string = "SERVICE_BROKER_URL"
 
+// Version defines the git tag this code is built with
+const Version string = "0.10.0"
+
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
 // broker backend. Use the `New` function to create a service instance. The instance will
 // give you access to the `Logger` and `Client` object.
 type Service struct {
 	name          string
-	serialization turnpike.Serialization
+	serialization serialize.Serialization
 	realm         string
 	url           string
 	username      string
 	password      string
 	useAuth       bool
 	Logger        *logging.Logger
-	Client        *turnpike.Client
+	Client        *client.Client
 }
 
 // Config holds the default configuration that is applied to a `Service` instance when the configuration
@@ -73,7 +79,7 @@ type Config struct {
 	Name          string
 	Version       string
 	Description   string
-	Serialization turnpike.Serialization
+	Serialization serialize.Serialization
 	URL           string
 	Realm         string
 	User          string
@@ -87,7 +93,7 @@ type Config struct {
 // 	func main() {
 // 		srv := service.New(service.Config{
 // 			Name:          "example",
-// 			Serialization: turnpike.MSGPACK,
+// 			Serialization: client.MSGPACK,
 // 			Version:       "0.1.0",
 // 			Description:   "Simple example microservice from the documentation.",
 // 			URL:           "ws://localhost:8000/ws",
@@ -142,9 +148,9 @@ func New(defaultConfig Config) *Service {
 
 	// translate serialization enums to strings to allow CLI parsing
 	var defSer string
-	if serialization == turnpike.JSON {
+	if serialization == client.JSON {
 		defSer = "json"
-	} else if serialization == turnpike.MSGPACK {
+	} else if serialization == client.MSGPACK {
 		defSer = "msgpack"
 	}
 
@@ -174,15 +180,16 @@ func New(defaultConfig Config) *Service {
 
 	// display version information
 	if *cliVer {
-		fmt.Println(defaultConfig.Version)
+		fmt.Printf("Version (service-lib): %s\n", Version)
+		fmt.Printf("Version (%s): %s\n", defaultConfig.Name, defaultConfig.Version)
 		os.Exit(ExitSuccess)
 	}
 
-	// translate the serialization from the CLI to turnpike enum
+	// translate the serialization from the CLI to nexus enum
 	if *cliSer == "json" {
-		srv.serialization = turnpike.JSON
+		srv.serialization = client.JSON
 	} else if *cliSer == "msgpack" {
-		srv.serialization = turnpike.MSGPACK
+		srv.serialization = client.MSGPACK
 	} else {
 		fmt.Printf("Invalid serialization type '%s'!\n", *cliSer)
 		flag.Usage()
@@ -259,37 +266,32 @@ func (srv *Service) Connect() {
 	var err error
 
 	srv.Logger.Debug("Trying to connect to broker")
-	srv.Client, err = turnpike.NewWebsocketClient(srv.serialization, srv.url, nil, nil, nil)
+
+	cfg := client.ClientConfig{
+		Realm:           srv.realm,
+		Serialization:   srv.serialization,
+		ResponseTimeout: 5 * time.Second,
+	}
+
+	if srv.useAuth {
+		helloDetails := wamp.Dict{
+			"authid": srv.username,
+		}
+		cfg.HelloDetails = helloDetails
+
+		authMethods := make(map[string]client.AuthFunc)
+		authMethods["ticket"] = func(_ *wamp.Challenge) (string, wamp.Dict) {
+			return srv.password, wamp.Dict{}
+		}
+		cfg.AuthHandlers = authMethods
+	}
+
+	srv.Client, err = client.ConnectNet(srv.url, cfg)
 	if err != nil {
 		srv.Logger.Criticalf("Failed to connect service to broker: %s", err)
 		os.Exit(ExitConnect)
 	}
-
-	if srv.useAuth {
-		authMethods := make(map[string]turnpike.AuthFunc)
-		authMethods["ticket"] = func(_, _ map[string]interface{}) (string, map[string]interface{}, error) {
-			return srv.password, make(map[string]interface{}), nil
-		}
-
-		srv.Client.Auth = authMethods
-	}
 	srv.Logger.Info("Connected to broker")
-
-	srv.Logger.Debug("Trying to join realm...")
-
-	var joinRealmDetails map[string]interface{}
-	if srv.useAuth {
-		joinRealmDetails = make(map[string]interface{})
-		joinRealmDetails["authid"] = srv.username
-		srv.Logger.Debugf("Login: %s", joinRealmDetails["authid"])
-	}
-	_, err = srv.Client.JoinRealm(srv.realm, joinRealmDetails)
-	if err != nil {
-		srv.Logger.Criticalf("Failed to join realm: %s", err)
-		os.Exit(ExitConnect)
-	}
-
-	srv.Logger.Info("Joined realm")
 }
 
 // Run starts the microservice. This function blocks until the user interrupts the process
@@ -302,33 +304,20 @@ func (srv *Service) Connect() {
 //
 // 2. The client connection failed to close.
 func (srv *Service) Run() {
-	var err error
+	defer srv.Client.Close()
 
 	sigintChannel := make(chan os.Signal, 1)
 	signal.Notify(sigintChannel, os.Interrupt)
-	closeChannel := make(chan bool, 1)
 
 	srv.Logger.Info("Entering main loop")
 	fmt.Println("Send SIGINT to quit")
-	srv.Client.ReceiveDone = closeChannel
 	select {
 	case <-sigintChannel:
 		// linebreak after echoed ^C
 		fmt.Println()
 		srv.Logger.Info("Received SIGINT, exiting")
-		err = srv.Client.LeaveRealm()
-		if err != nil {
-			srv.Logger.Criticalf("Error while running the service: %s", err)
-			os.Exit(ExitService)
-		}
 
-		err = srv.Client.Close()
-		if err != nil {
-			srv.Logger.Criticalf("Error while running the service: %s", err)
-			os.Exit(ExitService)
-		}
-
-	case <-closeChannel:
+	case <-srv.Client.Done():
 		srv.Logger.Info("Connection lost, exiting")
 	}
 	srv.Logger.Info("Leaving main loop")
@@ -349,20 +338,20 @@ type SubscriptionError struct {
 	Inner error
 }
 
-// HandlerRegistration holds a tuple of a `turnpike.MethodHandler` and an options map
+// HandlerRegistration holds a tuple of a `client.InvocationHandler` and an options map
 // that can be used in the `RegisterAll` function to register multiple method handlers
 // at once.
 type HandlerRegistration struct {
-	Handler turnpike.MethodHandler
-	Options map[string]interface{}
+	Handler client.InvocationHandler
+	Options wamp.Dict
 }
 
-// EventSubscription holds a tuple of a `turnpike.EventHandler` and an options map
+// EventSubscription holds a tuple of a `client.EventHandler` and an options map
 // that can be used in the `SubscribeAll` function to subcribe to multiple topics
 // at once.
 type EventSubscription struct {
-	Handler turnpike.EventHandler
-	Options map[string]interface{}
+	Handler client.EventHandler
+	Options wamp.Dict
 }
 
 // RegisterAll can be used to register multiple remote procedure calls at once.
@@ -399,12 +388,12 @@ func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *Regi
 // You can use it like this:
 //
 // 	options := make(map[string]interface{})
-// 	procedures := map[string]service.HandlerRegistration{
+// 	events := map[string]service.HandlerRegistration{
 // 		"example.goo_happened":   service.EventSubscriptions{handler.GooHappened, options},
 // 		"example.gesus_joined":   service.EventSubscriptions{handler.GesusJoined, options},
 // 		"example.no_more_mate":   service.EventSubscriptions{handler.NoMoreMate, options},
 // 	}
-// 	if err := util.App.SubscribeAll(procedures); err != nil {
+// 	if err := util.App.SubscribeAll(events); err != nil {
 // 		util.Log.Criticalf(
 // 			"Failed to subscribe to topic '%s' in broker: %s",
 // 			err.Topic,
@@ -412,9 +401,9 @@ func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *Regi
 // 		)
 // 		os.Exit(service.EXIT_REGISTRATION)
 // 	}
-func (srv *Service) SubscribeAll(procedures map[string]EventSubscription) *SubscriptionError {
-	for topic, regr := range procedures {
-		if err := srv.Client.Subscribe(topic, regr.Options, regr.Handler); err != nil {
+func (srv *Service) SubscribeAll(events map[string]EventSubscription) *SubscriptionError {
+	for topic, regr := range events {
+		if err := srv.Client.Subscribe(topic, regr.Handler, regr.Options); err != nil {
 			return &SubscriptionError{
 				Topic: topic,
 				Inner: err,

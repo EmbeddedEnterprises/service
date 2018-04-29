@@ -8,7 +8,7 @@ The robµlab service library is a convenience wrapper for easy microservice crea
 
 Run this in your project
 
-```
+```sh
 $ burrow get github.com/embeddedenterprises/service
 ```
 
@@ -42,30 +42,41 @@ func main() {
 }
 ```
 
-## How to view logging output
+## Running the examples
 
-The robµlab service library uses the system logging daemon to store log files. You can use the following command under systemd machines to view a robµlab service's log messages:
-
-```
-$ journalctl --user -e -f -t com.robulab.<name>
-```
-
-## Running the example
+### Simple example
 
 First you have to start a crossbar broker in the background.
 
-```
+```sh
 $ docker run -p 127.0.0.1:8080:8080 --name crossbar --rm crossbario/crossbar:latest
 ```
 
 The you can run the example service like this:
 
-```
-$ burrow run --example simple -- -b ws://localhost:8080/ws
+```sh
+$ burrow run --example simple -- -b ws://localhost:8080/ws -r realm1
 ```
 
-You can view the logging output of the example by issuing
+### Authentication example
 
+First you have to start the crossbar broker configured for authentication in the background.
+
+```sh
+$ docker run -p 127.0.0.1:8080:8080 \
+    --mount type=bind,source=$(pwd)/example/auth/crossbar.json,target=/node/.crossbar/config.json \
+    --name crossbar --rm crossbario/crossbar:latest
 ```
-$ journalctl --user -e -f -t com.robulab.example.simple
+
+Then you can run the auth example like this:
+
+```sh
+$ burrow run --example auth -- -b ws://localhost:8080/ws
+# Should yield 'no such principal with authid WRONG'
+
+$ burrow run --example auth -- -b ws://localhost:8080/ws -u CORRECT
+# Should yield 'authentication failed'
+
+$ burrow run --example auth -- -b ws://localhost:8080/ws -u CORRECT -p CORRECT
+# Should work just like the 'simple' example.
 ```

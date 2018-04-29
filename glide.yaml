@@ -1,7 +1,7 @@
 package: .
 import:
-- package: github.com/jcelliott/turnpike
-  version: v2
 - package: github.com/ogier/pflag
   version: master
 - package: github.com/op/go-logging
+- package: github.com/gammazero/nexus
+  version: ^2.0.2
