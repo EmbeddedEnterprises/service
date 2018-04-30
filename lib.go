@@ -168,23 +168,6 @@ func setupLogger(srv *Service) {
 
 // New creates a new service instance from the provided default configuration.
 // The configuration can be overridden with command line arguments or environment variables.
-// The main function of your microservice will most likely look like this:
-//
-// 	func main() {
-// 		srv := service.New(service.Config{
-// 			Name:          "example",
-// 			Serialization: client.MSGPACK,
-// 			Version:       "0.1.0",
-// 			Description:   "Simple example microservice from the documentation.",
-// 			URL:           "ws://localhost:8000/ws",
-// 		})
-// 		srv.Connect()
-//
-// 		// register and subscribe here
-//
-// 		srv.Run()
-// 		os.Exit(service.ExitSuccess)
-// 	}
 //
 // You can look in the `examples` of the source repository for a more detailed example.
 //
@@ -474,22 +457,6 @@ type EventSubscription struct {
 }
 
 // RegisterAll can be used to register multiple remote procedure calls at once.
-// You can use it like this:
-//
-// 	options := wamp.Dict{}
-// 	procedures := map[string]service.HandlerRegistration{
-// 		"example.get_magic":      service.HandlerRegistration{handler.GetMagic, options},
-// 		"example.do_stuff":       service.HandlerRegistration{handler.DoStuff, options},
-// 		"example.set_something":  service.HandlerRegistration{handler.SetSomething, options},
-// 	}
-// 	if err := util.App.RegisterAll(procedures); err != nil {
-// 		util.Log.Criticalf(
-// 			"Failed to register procedure '%s' in broker: %s",
-// 			err.ProcedureName,
-// 			err,
-// 		)
-// 		os.Exit(service.EXIT_REGISTRATION)
-// 	}
 func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *RegistrationError {
 	for name, regr := range procedures {
 		if err := srv.Client.Register(name, regr.Handler, regr.Options); err != nil {
@@ -504,22 +471,6 @@ func (srv *Service) RegisterAll(procedures map[string]HandlerRegistration) *Regi
 }
 
 // SubscribeAll can be used to subscribe to multiple topics at once.
-// You can use it like this:
-//
-// 	options := wamp.Dict{}
-// 	events := map[string]service.HandlerRegistration{
-// 		"example.goo_happened":   service.EventSubscriptions{handler.GooHappened, options},
-// 		"example.gesus_joined":   service.EventSubscriptions{handler.GesusJoined, options},
-// 		"example.no_more_mate":   service.EventSubscriptions{handler.NoMoreMate, options},
-// 	}
-// 	if err := util.App.SubscribeAll(events); err != nil {
-// 		util.Log.Criticalf(
-// 			"Failed to subscribe to topic '%s' in broker: %s",
-// 			err.Topic,
-// 			err,
-// 		)
-// 		os.Exit(service.EXIT_REGISTRATION)
-// 	}
 func (srv *Service) SubscribeAll(events map[string]EventSubscription) *SubscriptionError {
 	for topic, regr := range events {
 		if err := srv.Client.Subscribe(topic, regr.Handler, regr.Options); err != nil {
