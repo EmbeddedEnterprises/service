@@ -64,17 +64,17 @@ const EnvRealm string = "SERVICE_REALM"
 // Possible values are json and msgpack
 const EnvSerialization string = "SERVICE_SERIALIZATION"
 
-// EnvTlsClientCertFile defines the environment variable name for the TLS client certificate
+// EnvTLSClientCertFile defines the environment variable name for the TLS client certificate
 // public key to present to the router.
-const EnvTlsClientCertFile string = "TLS_CLIENT_CERT"
+const EnvTLSClientCertFile string = "TLS_CLIENT_CERT"
 
-// EnvTlsClientKeyFile defines the environment variable name for the TLS client certificate
+// EnvTLSClientKeyFile defines the environment variable name for the TLS client certificate
 // private key to present to the router.
-const EnvTlsClientKeyFile string = "TLS_CLIENT_KEY"
+const EnvTLSClientKeyFile string = "TLS_CLIENT_KEY"
 
-// EnvTlsServerCertFile defines the environment variable name for the TLS server certificate
+// EnvTLSServerCertFile defines the environment variable name for the TLS server certificate
 // public key to verify the server certificate against.
-const EnvTlsServerCertFile string = "TLS_SERVER_CERT"
+const EnvTLSServerCertFile string = "TLS_SERVER_CERT"
 
 // Version defines the git tag this code is built with
 const Version string = "0.12.0"
@@ -91,7 +91,7 @@ type Service struct {
 	username      string
 	password      string
 	useAuth       bool
-	useTls        bool
+	useTLS        bool
 	serverCert    *x509.CertPool
 	clientCert    *tls.Certificate
 	Logger        *logging.Logger
@@ -226,9 +226,9 @@ func New(defaultConfig Config) *Service {
 	defSer = overwriteEnv(defSer, EnvSerialization)
 	user := overwriteEnv(defaultConfig.User, EnvUsername)
 	password := overwriteEnv(defaultConfig.Password, EnvPassword)
-	clientCertFile := overwriteEnv(defaultConfig.TLSClientCertFile, EnvTlsClientCertFile)
-	clientKeyFile := overwriteEnv(defaultConfig.TLSClientKeyFile, EnvTlsClientKeyFile)
-	serverCertFile := overwriteEnv(defaultConfig.TLSServerCertFile, EnvTlsServerCertFile)
+	clientCertFile := overwriteEnv(defaultConfig.TLSClientCertFile, EnvTLSClientCertFile)
+	clientKeyFile := overwriteEnv(defaultConfig.TLSClientKeyFile, EnvTLSClientKeyFile)
+	serverCertFile := overwriteEnv(defaultConfig.TLSServerCertFile, EnvTLSServerCertFile)
 
 	// build the command line interface, allow to override many default values
 	var cliVer = flag.BoolP("version", "V", false, "prints the version")
@@ -280,7 +280,7 @@ func New(defaultConfig Config) *Service {
 
 	// when wss:// is set, we are using TLS to secure the connection.
 	if strings.HasPrefix(srv.url, "wss://") {
-		srv.useTls = true
+		srv.useTLS = true
 		if *cliSCF == "" {
 			srv.Logger.Warning("Server Certificate/CA not set, disabling verification!")
 			srv.serverCert = nil
@@ -335,7 +335,7 @@ func New(defaultConfig Config) *Service {
 	}
 
 	srv.Logger.Info("Hello")
-	srv.Logger.Infof("%ssing TLS.", map[bool]string{true: "U", false: "Not u"}[srv.useTls])
+	srv.Logger.Infof("%ssing TLS.", map[bool]string{true: "U", false: "Not u"}[srv.useTLS])
 	srv.Logger.Infof("Using '%s' as connection url...", srv.url)
 	srv.Logger.Infof("Using '%s' as serialization type...", *cliSer)
 	srv.Logger.Infof("Using '%s' as realm...", srv.realm)
@@ -363,7 +363,7 @@ func (srv *Service) Connect() {
 
 	srv.Logger.Debug("Trying to connect to broker")
 	var tlsCfg *tls.Config
-	if srv.useTls {
+	if srv.useTLS {
 		tlsCfg = &tls.Config{
 			InsecureSkipVerify: false,
 		}
@@ -393,7 +393,7 @@ func (srv *Service) Connect() {
 		cfg.HelloDetails = helloDetails
 
 		authMethods := make(map[string]client.AuthFunc)
-		if srv.useTls && srv.clientCert != nil {
+		if srv.useTLS && srv.clientCert != nil {
 			authMethods["tls"] = func(_ *wamp.Challenge) (string, wamp.Dict) {
 				return "", wamp.Dict{}
 			}
@@ -551,6 +551,8 @@ func ReturnError(uri string) *client.InvokeResult {
 	}
 }
 
+// ReturnEmpty constructs an empty wamp response, the equivalent of void.
+// Its primary use is to save boilerplate code.
 func ReturnEmpty() *client.InvokeResult {
 	return &client.InvokeResult{}
 }
