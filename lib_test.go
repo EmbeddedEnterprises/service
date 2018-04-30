@@ -44,9 +44,9 @@ func ExampleService_RegisterAll() {
 
 	options := wamp.Dict{}
 	procedures := map[string]service.HandlerRegistration{
-		"example.get_magic":     service.HandlerRegistration{dummyRegistration, options},
-		"example.do_stuff":      service.HandlerRegistration{dummyRegistration, options},
-		"example.set_something": service.HandlerRegistration{dummyRegistration, options},
+		"example.get_magic":     {dummyRegistration, options},
+		"example.do_stuff":      {dummyRegistration, options},
+		"example.set_something": {dummyRegistration, options},
 	}
 	if err := srv.RegisterAll(procedures); err != nil {
 		srv.Logger.Criticalf(
@@ -73,9 +73,9 @@ func ExampleService_SubscribeAll() {
 
 	options := wamp.Dict{}
 	events := map[string]service.EventSubscription{
-		"example.goo_happened": service.EventSubscription{dummySubscription, options},
-		"example.gesus_joined": service.EventSubscription{dummySubscription, options},
-		"example.no_more_mate": service.EventSubscription{dummySubscription, options},
+		"example.goo_happened": {dummySubscription, options},
+		"example.gesus_joined": {dummySubscription, options},
+		"example.no_more_mate": {dummySubscription, options},
 	}
 	if err := srv.SubscribeAll(events); err != nil {
 		srv.Logger.Criticalf(
