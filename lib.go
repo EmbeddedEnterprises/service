@@ -77,7 +77,7 @@ const EnvTlsClientKeyFile string = "TLS_CLIENT_KEY"
 const EnvTlsServerCertFile string = "TLS_SERVER_CERT"
 
 // Version defines the git tag this code is built with
-const Version string = "0.11.0"
+const Version string = "0.12.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
@@ -531,6 +531,28 @@ func (srv *Service) SubscribeAll(events map[string]EventSubscription) *Subscript
 	}
 
 	return nil
+}
+
+// ReturnValue constructs a wamp response which contains just one arbitrary value.
+// Its primary use is to save boilerplate code.
+func ReturnValue(value interface{}) *client.InvokeResult {
+	return &client.InvokeResult{
+		Args: wamp.List{
+			value,
+		},
+	}
+}
+
+// ReturnError constructs a wamp response which contains an error with the specified URI.
+// Its primary use is to save boilerplate code.
+func ReturnError(uri string) *client.InvokeResult {
+	return &client.InvokeResult{
+		Err: wamp.URI(uri),
+	}
+}
+
+func ReturnEmpty() *client.InvokeResult {
+	return &client.InvokeResult{}
 }
 
 // ErrorKind describes the type of an error that occurred during the execution of the microservice.

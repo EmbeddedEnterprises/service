@@ -25,7 +25,7 @@ func main() {
 	srv := service.New(service.Config{
 		Name:          "example.auth",
 		Serialization: client.JSON,
-		Version:       "0.1.0",
+		Version:       "0.1.1",
 		Description:   "Simple example microservice for robµlab using authentication.",
 		User:          "WRONG", // set this using $SERVICE_USERNAME
 		Password:      "WRONG", // set this using $SERVICE_PASSWORD
@@ -51,5 +51,5 @@ func echo(_ context.Context, args wamp.List, _, _ wamp.Dict) *client.InvokeResul
 	log.Info("Procedure echo called")
 	log.Infof("echo: %s", args...)
 
-	return &client.InvokeResult{}
+	return service.ReturnEmpty()
 }

@@ -24,7 +24,7 @@ func main() {
 	srv := service.New(service.Config{
 		Name:          "example.simple",
 		Serialization: client.MSGPACK,
-		Version:       "0.1.0",
+		Version:       "0.1.1",
 		Description:   "Simple example microservice for robµlab.",
 		URL:           "ws://localhost:8000/ws",
 		Realm:         "realm1",
@@ -50,5 +50,5 @@ func echo(_ context.Context, args wamp.List, kwargs, details wamp.Dict) *client.
 	log.Infof("kwargs: %v", kwargs)
 	log.Infof("details: %v", details)
 
-	return &client.InvokeResult{}
+	return service.ReturnEmpty()
 }
