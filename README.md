@@ -21,14 +21,14 @@ import (
 	"os"
 
 	"github.com/EmbeddedEnterprises/service"
-	"github.com/jcelliott/turnpike"
+	"github.com/gammazero/nexus/client"
 	"github.com/op/go-logging"
 )
 
 func main() {
 	srv := service.New(service.Config{
 		Name:          "example",
-		Serialization: turnpike.MSGPACK,
+		Serialization: client.MSGPACK,
 		Version:       "0.1.0",
 		Description:   "Simple example microservice from the documentation.",
 		URL:           "ws://localhost:8000/ws",
