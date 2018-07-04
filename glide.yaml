@@ -1,7 +1,9 @@
-package: .
+package: github.com/EmbeddedEnterprises/service
 import:
 - package: github.com/ogier/pflag
   version: master
 - package: github.com/op/go-logging
 - package: github.com/gammazero/nexus
-  version: ^2.0.2
+  repo: https://github.com/EmbeddedEnterprises/nexus.git
+  version: master
+  vcs: git

@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"time"
 
@@ -25,6 +26,19 @@ import (
 	flag "github.com/ogier/pflag"
 	"github.com/op/go-logging"
 )
+
+const BinaryDataExtension byte = 42
+
+func init() {
+	encode := func(value reflect.Value) ([]byte, error) {
+		return value.Bytes(), nil
+	}
+	decode := func(value reflect.Value, data []byte) error {
+		value.Elem().SetBytes(data)
+		return nil
+	}
+	serialize.MsgpackRegisterExtension(reflect.TypeOf(serialize.BinaryData{}), 42, encode, decode)
+}
 
 const (
 	// ExitSuccess indicates that the service terminated without an error.
@@ -506,6 +520,18 @@ func ReturnError(uri string) *client.InvokeResult {
 // Its primary use is to save boilerplate code.
 func ReturnEmpty() *client.InvokeResult {
 	return &client.InvokeResult{}
+}
+
+// IsRPCError checks whether the given error is a wamp RPC error
+func IsRPCError(err error) bool {
+	_, ok := err.(client.RPCError)
+	return ok
+}
+
+// IsSpecificRPCError checks whether the given error is a wamp RPC error witch the expected error URI
+func IsSpecificRPCError(err error, uri wamp.URI) bool {
+	rpc, ok := err.(client.RPCError)
+	return ok && rpc.Err.Error == uri
 }
 
 // ErrorKind describes the type of an error that occurred during the execution of the microservice.
