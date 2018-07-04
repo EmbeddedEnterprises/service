@@ -91,7 +91,7 @@ const EnvTLSClientKeyFile string = "TLS_CLIENT_KEY"
 const EnvTLSServerCertFile string = "TLS_SERVER_CERT"
 
 // Version defines the git tag this code is built with
-const Version string = "0.12.0"
+const Version string = "0.13.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
