@@ -14,9 +14,11 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,6 +92,9 @@ const EnvTLSClientKeyFile string = "TLS_CLIENT_KEY"
 // public key to verify the server certificate against.
 const EnvTLSServerCertFile string = "TLS_SERVER_CERT"
 
+// EnvConnectTimeout defines the environment variable name for the connect timeout definition.
+const EnvConnectTimeout string = "SERVICE_CONNECT_TIMEOUT"
+
 // Version defines the git tag this code is built with
 const Version string = "0.13.0"
 
@@ -110,6 +115,7 @@ type Service struct {
 	clientCert    *tls.Certificate
 	Logger        *logging.Logger
 	Client        *client.Client
+	timeout       time.Duration
 }
 
 // Config holds the default configuration that is applied to a `Service` instance when the configuration
@@ -126,12 +132,13 @@ type Config struct {
 	TLSClientCertFile string
 	TLSClientKeyFile  string
 	TLSServerCertFile string
+	Timeout           time.Duration
 }
 
 // This function allows to query environment variables with default values.
 func overwriteEnv(defaultValue string, envVar string) string {
-	envValue := os.Getenv(envVar)
-	if envValue != "" {
+	envValue, ok := os.LookupEnv(envVar)
+	if ok {
 		return envValue
 	}
 	return defaultValue
@@ -226,7 +233,15 @@ func New(defaultConfig Config) *Service {
 	clientCertFile := overwriteEnv(defaultConfig.TLSClientCertFile, EnvTLSClientCertFile)
 	clientKeyFile := overwriteEnv(defaultConfig.TLSClientKeyFile, EnvTLSClientKeyFile)
 	serverCertFile := overwriteEnv(defaultConfig.TLSServerCertFile, EnvTLSServerCertFile)
-
+	defaultTimeout := uint64(defaultConfig.Timeout / time.Second)
+	if timeout, envok := os.LookupEnv(EnvConnectTimeout); envok {
+		t, err := strconv.ParseUint(timeout, 0, 64)
+		if err != nil {
+			fmt.Printf("%s must be an integer!", EnvConnectTimeout)
+			os.Exit(ExitArgument)
+		}
+		defaultTimeout = t
+	}
 	// build the command line interface, allow to override many default values
 	var cliVer = flag.BoolP("version", "V", false, "prints the version")
 	var cliSer = flag.StringP("serialization", "s", defSer, "the value may be one of json or msgpack")
@@ -237,7 +252,7 @@ func New(defaultConfig Config) *Service {
 	var cliCCF = flag.String("tls-client-cert-file", clientCertFile, "TLS client public key file")
 	var cliCKF = flag.String("tls-client-key-file", clientKeyFile, "TLS client private key file")
 	var cliSCF = flag.String("tls-server-cert-file", serverCertFile, "TLS server public key file")
-
+	var cliTimeout = flag.Uint64("connect-timeout", defaultTimeout, "Timeout in seconds for broker connection, 0 to use default")
 	// parse the command line
 	flag.Parse()
 
@@ -273,6 +288,7 @@ func New(defaultConfig Config) *Service {
 	// setup the final values to use for this service
 	srv.url = *cliURL
 	srv.realm = *cliRlm
+	srv.timeout = time.Duration(*cliTimeout) * time.Second
 	srv.useAuth = true
 
 	// when wss:// is set, we are using TLS to secure the connection.
@@ -381,6 +397,12 @@ func (srv *Service) Connect() {
 		Serialization:   srv.serialization,
 		ResponseTimeout: 5 * time.Second,
 		TlsCfg:          tlsCfg,
+	}
+
+	if srv.timeout > time.Duration(0) {
+		cfg.Dial = func(network, address string) (net.Conn, error) {
+			return net.DialTimeout(network, address, srv.timeout)
+		}
 	}
 
 	if srv.useAuth {
