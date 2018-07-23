@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/EmbeddedEnterprises/service"
 	"github.com/gammazero/nexus/client"
@@ -16,6 +17,7 @@ func ExampleNew() {
 		Version:       "0.1.0",
 		Description:   "Simple example microservice from the documentation.",
 		URL:           "ws://localhost:8000/ws",
+		Timeout:       1 * time.Second,
 	})
 	srv.Connect()
 
@@ -44,9 +46,9 @@ func ExampleService_RegisterAll() {
 
 	options := wamp.Dict{}
 	procedures := map[string]service.HandlerRegistration{
-		"example.get_magic":     {dummyRegistration, options},
-		"example.do_stuff":      {dummyRegistration, options},
-		"example.set_something": {dummyRegistration, options},
+		"example.get_magic":     {Handler: dummyRegistration, Options: options},
+		"example.do_stuff":      {Handler: dummyRegistration, Options: options},
+		"example.set_something": {Handler: dummyRegistration, Options: options},
 	}
 	if err := srv.RegisterAll(procedures); err != nil {
 		srv.Logger.Criticalf(
@@ -73,9 +75,9 @@ func ExampleService_SubscribeAll() {
 
 	options := wamp.Dict{}
 	events := map[string]service.EventSubscription{
-		"example.goo_happened": {dummySubscription, options},
-		"example.gesus_joined": {dummySubscription, options},
-		"example.no_more_mate": {dummySubscription, options},
+		"example.goo_happened": {Handler: dummySubscription, Options: options},
+		"example.gesus_joined": {Handler: dummySubscription, Options: options},
+		"example.no_more_mate": {Handler: dummySubscription, Options: options},
 	}
 	if err := srv.SubscribeAll(events); err != nil {
 		srv.Logger.Criticalf(

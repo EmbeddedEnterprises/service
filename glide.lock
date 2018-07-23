@@ -1,8 +1,8 @@
 hash: aeb8a368653cbbf086bb89bd9ce53e432e94f944d6601dfbfe825471bfff952d
-updated: 2018-07-04T19:45:39.299563698+02:00
+updated: 2018-07-23T14:15:51.351419717+02:00
 imports:
 - name: github.com/gammazero/nexus
-  version: 7722ec79c9f08abc7e9a72054bf69c6e14f46b4c
+  version: 81a086cf47177881fa1d0fe47e91ef442fd0bfdc
   repo: https://github.com/EmbeddedEnterprises/nexus.git
   vcs: git
   subpackages:
@@ -21,11 +21,11 @@ imports:
 - name: github.com/op/go-logging
   version: 970db520ece77730c7e4724c61121037378659d9
 - name: github.com/ugorji/go
-  version: 7d51bbe6161dcb8f32a1252c27668ce36e3ef16b
+  version: 2e1067cd04ec91c6fdf491ac8028c9d3aea73ab4
   subpackages:
   - codec
 - name: golang.org/x/crypto
-  version: a49355c7e3f8fe157a85be2f77e6e269a0f89602
+  version: a2144134853fc9a27a7b1e3eb4f19f1a76df13c9
   subpackages:
   - pbkdf2
 testImports: []
