@@ -4,6 +4,7 @@ import:
   version: master
 - package: github.com/op/go-logging
 - package: github.com/gammazero/nexus
-  repo: https://github.com/EmbeddedEnterprises/nexus.git
   version: master
+  repo: https://github.com/EmbeddedEnterprises/nexus.git
   vcs: git
+- package: github.com/mitchellh/mapstructure
