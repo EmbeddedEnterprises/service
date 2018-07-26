@@ -25,6 +25,7 @@ import (
 	"github.com/gammazero/nexus/client"
 	"github.com/gammazero/nexus/transport/serialize"
 	"github.com/gammazero/nexus/wamp"
+	"github.com/mitchellh/mapstructure"
 	flag "github.com/ogier/pflag"
 	"github.com/op/go-logging"
 )
@@ -665,4 +666,32 @@ func (e *Error) Error() string {
 		return fmt.Sprintf("%s\nInner Error: %s", msg, e.inner.Error())
 	}
 	return msg
+}
+
+// CallerID represents a caller of a wamp RPC invocation
+type CallerID struct {
+	Session  wamp.ID  `mapstructure:"caller"`
+	Username string   `mapstructure:"caller_authid"`
+	Role     []string `mapstructure:"caller_authrole"`
+}
+
+// ParseCallerID extracts caller information from the details dictionary of a wamp RPC invocation
+func ParseCallerID(details wamp.Dict) (*CallerID, error) {
+	c := &CallerID{}
+	if err := mapstructure.WeakDecode(details, c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// HasAnyRole checks whether the caller object has any of the specified roles
+func (c *CallerID) HasAnyRole(test []string) bool {
+	for _, r := range c.Role {
+		for _, r2 := range test {
+			if r == r2 {
+				return true
+			}
+		}
+	}
+	return false
 }
