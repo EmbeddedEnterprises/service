@@ -10,6 +10,7 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -91,6 +92,16 @@ const EnvTLSClientKeyFile string = "TLS_CLIENT_KEY"
 // public key to verify the server certificate against.
 const EnvTLSServerCertFile string = "TLS_SERVER_CERT"
 
+// EnvPingEnabled defines the environment variable name for the flag indicating
+// whether server ping should be enabled
+const EnvPingEnabled string = "SERVICE_ENABLE_PING"
+
+// EnvPingInterval defines the environment variable name for the ping interval definition
+const EnvPingInterval string = "SERVICE_PING_INTERVAL"
+
+// EnvPingEndpoint defines the environment variable name for the ping procedure to call
+const EnvPingEndpoint string = "SERVICE_PING_ENDPOINT"
+
 // Version defines the git tag this code is built with
 const Version string = "0.14.0"
 
@@ -105,6 +116,9 @@ type Service struct {
 	url           string
 	username      string
 	password      string
+	pingEnabled   bool
+	pingInterval  time.Duration
+	pingEndpoint  string
 	useAuth       bool
 	useTLS        bool
 	serverCert    *x509.CertPool
@@ -203,6 +217,10 @@ func New(defaultConfig Config) *Service {
 	var cliCKF = flag.String("tls-client-key-file", os.Getenv(EnvTLSClientKeyFile), "TLS client private key file")
 	var cliSCF = flag.String("tls-server-cert-file", os.Getenv(EnvTLSServerCertFile), "TLS server public key file")
 	var cliTimeout = flag.String("connect-timeout", os.Getenv(EnvConnectTimeout), "Timeout for broker connection, 0s to use default")
+	_, enablePing := os.LookupEnv(EnvPingEnabled)
+	var pingEnable = flag.Bool("ping-enable", enablePing, "Whether to send a ping to the server")
+	var pingEndpoint = flag.String("ping-endpoint", os.Getenv(EnvPingEndpoint), "Which procedure to call when pinging the server")
+	var pingInterval = flag.String("ping-interval", os.Getenv(EnvPingInterval), "Duration between two pings")
 	// parse the command line
 	flag.Parse()
 
@@ -216,6 +234,10 @@ func New(defaultConfig Config) *Service {
 	// create a new service object on the heap
 	srv := &Service{}
 	srv.name = name
+	srv.pingEnabled = true
+	srv.pingEndpoint = "ee.ping"
+	srv.pingInterval = 10 * time.Second
+
 	setupLogger(srv)
 	srv.serialization = defaultConfig.Serialization
 
@@ -229,6 +251,21 @@ func New(defaultConfig Config) *Service {
 		srv.Logger.Error("Please provide a realm!")
 		flag.Usage()
 		os.Exit(ExitArgument)
+	}
+
+	if !*pingEnable {
+		srv.pingEnabled = false
+	}
+	if *pingEndpoint != "" {
+		srv.pingEndpoint = *pingEndpoint
+	}
+
+	if pingIntervalDur, err := time.ParseDuration(*pingInterval); err != nil || pingIntervalDur < 1*time.Second {
+		srv.Logger.Warningf("Ping interval '%s' is invalid: %v", *pingInterval, err)
+		srv.Logger.Warningf("Falling back to 10s")
+		srv.pingInterval = 10 * time.Second
+	} else {
+		srv.pingInterval = pingIntervalDur
 	}
 
 	// setup the final values to use for this service
@@ -410,6 +447,12 @@ func (srv *Service) Run() {
 	sigintChannel := make(chan os.Signal, 1)
 	signal.Notify(sigintChannel, os.Interrupt)
 
+	pingClose := make(chan struct{}, 1)
+
+	if srv.pingEnabled {
+		go srv.runPing(pingClose)
+	}
+
 	srv.Logger.Info("Entering main loop")
 	fmt.Println("Send SIGINT to quit")
 	select {
@@ -421,6 +464,7 @@ func (srv *Service) Run() {
 	case <-srv.Client.Done():
 		srv.Logger.Info("Connection lost, exiting")
 	}
+	close(pingClose)
 	srv.Logger.Info("Leaving main loop")
 	srv.Logger.Info("Bye")
 }
@@ -481,6 +525,23 @@ func (srv *Service) SubscribeAll(events map[string]EventSubscription) *Subscript
 	}
 
 	return nil
+}
+
+func (srv *Service) runPing(closePing chan struct{}) {
+	ticker := time.NewTicker(srv.pingInterval)
+outer:
+	for {
+		select {
+		case <-closePing:
+			break outer
+		case <-ticker.C:
+			if _, err := srv.Client.Call(context.Background(), srv.pingEndpoint, nil, nil, nil, ""); err != nil {
+				srv.Logger.Criticalf("Ping failed, exiting! %v", err)
+				srv.Client.Close()
+				break outer
+			}
+		}
+	}
 }
 
 // ReturnValue constructs a wamp response which contains just one arbitrary value.
