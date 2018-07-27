@@ -535,11 +535,14 @@ outer:
 		case <-closePing:
 			break outer
 		case <-ticker.C:
-			if _, err := srv.Client.Call(context.Background(), srv.pingEndpoint, nil, nil, nil, ""); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), srv.pingInterval)
+			if _, err := srv.Client.Call(ctx, srv.pingEndpoint, nil, nil, nil, ""); err != nil {
+				cancel()
 				srv.Logger.Criticalf("Ping failed, exiting! %v", err)
 				srv.Client.Close()
 				break outer
 			}
+			cancel()
 		}
 	}
 }
