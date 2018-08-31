@@ -26,8 +26,6 @@ func main() {
 		Serialization: client.MSGPACK,
 		Version:       "0.1.1",
 		Description:   "Simple example microservice for robµlab.",
-		URL:           "ws://localhost:8000/ws",
-		Realm:         "realm1",
 	})
 	log = srv.Logger
 	srv.Connect()
