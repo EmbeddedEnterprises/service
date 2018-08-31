@@ -27,10 +27,6 @@ func main() {
 		Serialization: client.JSON,
 		Version:       "0.1.1",
 		Description:   "Simple example microservice for robµlab using authentication.",
-		User:          "WRONG", // set this using $SERVICE_USERNAME
-		Password:      "WRONG", // set this using $SERVICE_PASSWORD
-		Realm:         "realm1",
-		URL:           "ws://localhost:8000/ws",
 	})
 	log = srv.Logger
 	srv.Connect()
