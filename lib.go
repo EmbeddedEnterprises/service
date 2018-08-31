@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -77,9 +76,8 @@ const EnvBrokerURL string = "SERVICE_BROKER_URL"
 // EnvRealm defines the environment variable name for the realm definition.
 const EnvRealm string = "SERVICE_REALM"
 
-// EnvSerialization defines the environment variable name for the serialization definition.
-// Possible values are json and msgpack
-const EnvSerialization string = "SERVICE_SERIALIZATION"
+// EnvConnectTimeout defines the environment variable name for the connect timeout definition.
+const EnvConnectTimeout string = "SERVICE_CONNECT_TIMEOUT"
 
 // EnvTLSClientCertFile defines the environment variable name for the TLS client certificate
 // public key to present to the router.
@@ -93,11 +91,8 @@ const EnvTLSClientKeyFile string = "TLS_CLIENT_KEY"
 // public key to verify the server certificate against.
 const EnvTLSServerCertFile string = "TLS_SERVER_CERT"
 
-// EnvConnectTimeout defines the environment variable name for the connect timeout definition.
-const EnvConnectTimeout string = "SERVICE_CONNECT_TIMEOUT"
-
 // Version defines the git tag this code is built with
-const Version string = "0.13.0"
+const Version string = "0.14.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
@@ -122,27 +117,10 @@ type Service struct {
 // Config holds the default configuration that is applied to a `Service` instance when the configuration
 // is not overridden by a cli argument or an environment variable. The cli argument always has priority!
 type Config struct {
-	Name              string
-	Version           string
-	Description       string
-	Serialization     serialize.Serialization
-	URL               string
-	Realm             string
-	User              string
-	Password          string
-	TLSClientCertFile string
-	TLSClientKeyFile  string
-	TLSServerCertFile string
-	Timeout           time.Duration
-}
-
-// This function allows to query environment variables with default values.
-func overwriteEnv(defaultValue string, envVar string) string {
-	envValue, ok := os.LookupEnv(envVar)
-	if ok {
-		return envValue
-	}
-	return defaultValue
+	Name          string
+	Version       string
+	Description   string
+	Serialization serialize.Serialization
 }
 
 func ensureFileExists(fid, fname string, srv *Service) {
@@ -215,45 +193,16 @@ func New(defaultConfig Config) *Service {
 		name = "example"
 	}
 
-	serialization := defaultConfig.Serialization
-	// translate serialization enums to strings to allow CLI parsing
-	var defSer string
-	if serialization == client.JSON {
-		defSer = "json"
-	} else if serialization == client.MSGPACK {
-		defSer = "msgpack"
-	}
-
-	// fetch username and password from environment variables overwriting
-	// the default values
-	url := overwriteEnv(defaultConfig.URL, EnvBrokerURL)
-	realm := overwriteEnv(defaultConfig.Realm, EnvRealm)
-	defSer = overwriteEnv(defSer, EnvSerialization)
-	user := overwriteEnv(defaultConfig.User, EnvUsername)
-	password := overwriteEnv(defaultConfig.Password, EnvPassword)
-	clientCertFile := overwriteEnv(defaultConfig.TLSClientCertFile, EnvTLSClientCertFile)
-	clientKeyFile := overwriteEnv(defaultConfig.TLSClientKeyFile, EnvTLSClientKeyFile)
-	serverCertFile := overwriteEnv(defaultConfig.TLSServerCertFile, EnvTLSServerCertFile)
-	defaultTimeout := uint64(defaultConfig.Timeout / time.Second)
-	if timeout, envok := os.LookupEnv(EnvConnectTimeout); envok {
-		t, err := strconv.ParseUint(timeout, 0, 64)
-		if err != nil {
-			fmt.Printf("%s must be an integer!", EnvConnectTimeout)
-			os.Exit(ExitArgument)
-		}
-		defaultTimeout = t
-	}
-	// build the command line interface, allow to override many default values
+	// build the command line interface, allow to override the values provided by the environment
 	var cliVer = flag.BoolP("version", "V", false, "prints the version")
-	var cliSer = flag.StringP("serialization", "s", defSer, "the value may be one of json or msgpack")
-	var cliURL = flag.StringP("broker-url", "b", url, "the websocket url of the broker")
-	var cliUsr = flag.StringP("user", "u", user, "the user to login as")
-	var cliPwd = flag.StringP("password", "p", password, "the password to login with")
-	var cliRlm = flag.StringP("realm", "r", realm, "the name of the realm to connect to")
-	var cliCCF = flag.String("tls-client-cert-file", clientCertFile, "TLS client public key file")
-	var cliCKF = flag.String("tls-client-key-file", clientKeyFile, "TLS client private key file")
-	var cliSCF = flag.String("tls-server-cert-file", serverCertFile, "TLS server public key file")
-	var cliTimeout = flag.Uint64("connect-timeout", defaultTimeout, "Timeout in seconds for broker connection, 0 to use default")
+	var cliURL = flag.StringP("broker-url", "b", os.Getenv(EnvBrokerURL), "the websocket url of the broker")
+	var cliUsr = flag.StringP("user", "u", os.Getenv(EnvUsername), "the user to login as")
+	var cliPwd = flag.StringP("password", "p", os.Getenv(EnvPassword), "the password to login with")
+	var cliRlm = flag.StringP("realm", "r", os.Getenv(EnvRealm), "the name of the realm to connect to")
+	var cliCCF = flag.String("tls-client-cert-file", os.Getenv(EnvTLSClientCertFile), "TLS client public key file")
+	var cliCKF = flag.String("tls-client-key-file", os.Getenv(EnvTLSClientKeyFile), "TLS client private key file")
+	var cliSCF = flag.String("tls-server-cert-file", os.Getenv(EnvTLSServerCertFile), "TLS server public key file")
+	var cliTimeout = flag.String("connect-timeout", os.Getenv(EnvConnectTimeout), "Timeout for broker connection, 0s to use default")
 	// parse the command line
 	flag.Parse()
 
@@ -268,17 +217,7 @@ func New(defaultConfig Config) *Service {
 	srv := &Service{}
 	srv.name = name
 	setupLogger(srv)
-
-	// translate the serialization from the CLI to nexus enum
-	if *cliSer == "json" {
-		srv.serialization = client.JSON
-	} else if *cliSer == "msgpack" {
-		srv.serialization = client.MSGPACK
-	} else {
-		srv.Logger.Errorf("Invalid serialization type '%s'!", *cliSer)
-		flag.Usage()
-		os.Exit(ExitArgument)
-	}
+	srv.serialization = defaultConfig.Serialization
 
 	if *cliURL == "" {
 		srv.Logger.Error("Please provide a broker url!")
@@ -286,15 +225,34 @@ func New(defaultConfig Config) *Service {
 		os.Exit(ExitArgument)
 	}
 
+	if *cliRlm == "" {
+		srv.Logger.Error("Please provide a realm!")
+		flag.Usage()
+		os.Exit(ExitArgument)
+	}
+
 	// setup the final values to use for this service
 	srv.url = *cliURL
 	srv.realm = *cliRlm
-	srv.timeout = time.Duration(*cliTimeout) * time.Second
+	timeout, err := time.ParseDuration(*cliTimeout)
+	if err != nil {
+		srv.Logger.Error("Specified timeout '%s' is invalid!", *cliTimeout)
+		flag.Usage()
+		os.Exit(ExitArgument)
+	}
+	if timeout != 0 && timeout < 1*time.Second {
+		srv.Logger.Info("Setting timeout to '1s', specifed duration was too short")
+		timeout = 1 * time.Second
+	}
+	srv.timeout = timeout
 	srv.useAuth = true
 
 	// when wss:// is set, we are using TLS to secure the connection.
 	if strings.HasPrefix(srv.url, "wss://") {
 		srv.useTLS = true
+
+		// Check whether the user requested to validate the servers identity
+		// If so, check the file exists and is a valid certificate
 		if *cliSCF == "" {
 			srv.Logger.Warning("Server Certificate/CA not set, disabling verification!")
 			srv.serverCert = nil
@@ -312,10 +270,14 @@ func New(defaultConfig Config) *Service {
 			}
 		}
 
+		// Check whether the user requested to authenticate the service using TLS client certificates
+		// If so, check the certificates exist and are valid
 		if *cliCCF == "" || *cliCKF == "" {
+			// Otherwise, fallback to username/password
 			srv.Logger.Info("TLS client certificate not provided, falling back to ticket auth")
 			srv.clientCert = nil
 			if *cliUsr == "" || *cliPwd == "" {
+				// Fallback to anonymous
 				srv.Logger.Warning("Missing username/password, disabling authentication completely.")
 				srv.useAuth = false
 			}
@@ -351,7 +313,7 @@ func New(defaultConfig Config) *Service {
 	srv.Logger.Info("Hello")
 	srv.Logger.Infof("%ssing TLS.", map[bool]string{true: "U", false: "Not u"}[srv.useTLS])
 	srv.Logger.Infof("Using '%s' as connection url...", srv.url)
-	srv.Logger.Infof("Using '%s' as serialization type...", *cliSer)
+	srv.Logger.Infof("Using '%s' as serialization type...", srv.serialization)
 	srv.Logger.Infof("Using '%s' as realm...", srv.realm)
 	if !srv.useAuth {
 		srv.Logger.Info("No authentication configured...")

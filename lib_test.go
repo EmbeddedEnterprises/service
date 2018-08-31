@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/EmbeddedEnterprises/service"
 	"github.com/gammazero/nexus/client"
@@ -102,8 +101,6 @@ func ExampleNew() {
 		Serialization: client.MSGPACK,
 		Version:       "0.1.0",
 		Description:   "Simple example microservice from the documentation.",
-		URL:           "ws://localhost:8000/ws",
-		Timeout:       1 * time.Second,
 	})
 	srv.Connect()
 
@@ -126,7 +123,6 @@ func ExampleService_RegisterAll() {
 		Serialization: client.MSGPACK,
 		Version:       "0.1.0",
 		Description:   "Simple example microservice from the documentation.",
-		URL:           "ws://localhost:8000/ws",
 	})
 	srv.Connect()
 
@@ -155,7 +151,6 @@ func ExampleService_SubscribeAll() {
 		Serialization: client.MSGPACK,
 		Version:       "0.1.0",
 		Description:   "Simple example microservice from the documentation.",
-		URL:           "ws://localhost:8000/ws",
 	})
 	srv.Connect()
 
