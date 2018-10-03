@@ -30,6 +30,12 @@ import (
 	"github.com/op/go-logging"
 )
 
+// BinaryDataExtension is the extension number used to correctly encode raw binary
+// data in msgpack. This is required because most msgpack implementations don't
+// distinguish between strings and byte arrays, but JSON does, which leads to invalid
+// utf-8 characters in JSON strings.
+// This extension allows us to pass binary messages from a msgpack client to a
+// JSON client.
 const BinaryDataExtension byte = 42
 
 func init() {
@@ -103,7 +109,7 @@ const EnvPingInterval string = "SERVICE_PING_INTERVAL"
 const EnvPingEndpoint string = "SERVICE_PING_ENDPOINT"
 
 // Version defines the git tag this code is built with
-const Version string = "0.14.0"
+const Version string = "0.15.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
@@ -128,8 +134,9 @@ type Service struct {
 	timeout       time.Duration
 }
 
-// Config holds the default configuration that is applied to a `Service` instance when the configuration
-// is not overridden by a cli argument or an environment variable. The cli argument always has priority!
+// Config is a structure describing the service. It is used to describe the service
+// when running with --version or --help.
+// Values passed in the config structure can't be overridden at runtime.
 type Config struct {
 	Name          string
 	Version       string

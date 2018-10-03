@@ -31,7 +31,6 @@ func main() {
 		Serialization: client.MSGPACK,
 		Version:       "0.1.0",
 		Description:   "Simple example microservice from the documentation.",
-		URL:           "ws://localhost:8000/ws",
 	})
 	srv.Connect()
 
@@ -46,7 +45,7 @@ func main() {
 
 ### Simple example
 
-First you have to start a crossbar broker in the background.
+First you have to start a WAMP router in the background (i.e. crossbar.io or nexus):
 
 ```sh
 $ docker run -p 127.0.0.1:8080:8080 --name crossbar --rm crossbario/crossbar:latest
@@ -60,7 +59,7 @@ $ burrow run --example simple -- -b ws://localhost:8080/ws -r realm1
 
 ### Authentication example
 
-First you have to start the crossbar broker configured for authentication in the background.
+First you have to start a WAMP router configured with authentication in the background:
 
 ```sh
 $ docker run -p 127.0.0.1:8080:8080 \
@@ -71,7 +70,7 @@ $ docker run -p 127.0.0.1:8080:8080 \
 Then you can run the auth example like this:
 
 ```sh
-$ burrow run --example auth -- -b ws://localhost:8080/ws
+$ burrow run --example auth -- -b ws://localhost:8080/ws -u WRONG
 # Should yield 'no such principal with authid WRONG'
 
 $ burrow run --example auth -- -b ws://localhost:8080/ws -u CORRECT
@@ -80,3 +79,10 @@ $ burrow run --example auth -- -b ws://localhost:8080/ws -u CORRECT
 $ burrow run --example auth -- -b ws://localhost:8080/ws -u CORRECT -p CORRECT
 # Should work just like the 'simple' example.
 ```
+
+The service library supports several authentication modes:
+
+- Anonymous (i.e. no username and password is specified), the client is authenticated
+  using other features, like remote-ip or some specific socket
+- Ticket (normal username and password)
+- TLS Client Auth, which provides encryption and authentication utilizing a PKI.
