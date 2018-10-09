@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -109,7 +110,7 @@ const EnvPingInterval string = "SERVICE_PING_INTERVAL"
 const EnvPingEndpoint string = "SERVICE_PING_ENDPOINT"
 
 // Version defines the git tag this code is built with
-const Version string = "0.15.0"
+const Version string = "0.16.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
@@ -224,7 +225,18 @@ func New(defaultConfig Config) *Service {
 	var cliCKF = flag.String("tls-client-key-file", os.Getenv(EnvTLSClientKeyFile), "TLS client private key file")
 	var cliSCF = flag.String("tls-server-cert-file", os.Getenv(EnvTLSServerCertFile), "TLS server public key file")
 	var cliTimeout = flag.String("connect-timeout", os.Getenv(EnvConnectTimeout), "Timeout for broker connection, 0s to use default")
-	_, enablePing := os.LookupEnv(EnvPingEnabled)
+
+	enablePing := true
+
+	if enablePingVal, enablePingSet := os.LookupEnv(EnvPingEnabled); enablePingSet {
+		enable, err := strconv.ParseBool(enablePingVal)
+		if err != nil {
+			fmt.Printf("Failed to parse %s environment variable: %v", EnvPingEnabled, err)
+			os.Exit(ExitArgument)
+		}
+		enablePing = enable
+	}
+
 	var pingEnable = flag.Bool("ping-enable", enablePing, "Whether to send a ping to the server")
 	var pingEndpoint = flag.String("ping-endpoint", os.Getenv(EnvPingEndpoint), "Which procedure to call when pinging the server")
 	var pingInterval = flag.String("ping-interval", os.Getenv(EnvPingInterval), "Duration between two pings")
@@ -233,8 +245,8 @@ func New(defaultConfig Config) *Service {
 
 	// display version information
 	if *cliVer {
-		fmt.Printf("Version (service-lib): %s\n", Version)
-		fmt.Printf("Version (%s): %s\n", defaultConfig.Name, defaultConfig.Version)
+		fmt.Printf("Version (%-20s): %s\n", "service-lib", Version)
+		fmt.Printf("Version (%-20s): %s\n", defaultConfig.Name, defaultConfig.Version)
 		os.Exit(ExitSuccess)
 	}
 
@@ -244,6 +256,7 @@ func New(defaultConfig Config) *Service {
 	srv.pingEnabled = true
 	srv.pingEndpoint = "ee.ping"
 	srv.pingInterval = 10 * time.Second
+	srv.timeout = 5 * time.Second
 
 	setupLogger(srv)
 	srv.serialization = defaultConfig.Serialization
@@ -267,28 +280,33 @@ func New(defaultConfig Config) *Service {
 		srv.pingEndpoint = *pingEndpoint
 	}
 
-	if pingIntervalDur, err := time.ParseDuration(*pingInterval); err != nil || pingIntervalDur < 1*time.Second {
-		srv.Logger.Warningf("Ping interval '%s' is invalid: %v", *pingInterval, err)
-		srv.Logger.Warningf("Falling back to 10s")
-		srv.pingInterval = 10 * time.Second
-	} else {
-		srv.pingInterval = pingIntervalDur
+	if *pingInterval != "" {
+		if pingIntervalDur, err := time.ParseDuration(*pingInterval); err != nil || pingIntervalDur < 1*time.Second {
+			srv.Logger.Errorf("Ping interval '%s' is invalid: %v", *pingInterval, err)
+			flag.Usage()
+			os.Exit(ExitArgument)
+		} else {
+			srv.pingInterval = pingIntervalDur
+		}
 	}
 
 	// setup the final values to use for this service
 	srv.url = *cliURL
 	srv.realm = *cliRlm
-	timeout, err := time.ParseDuration(*cliTimeout)
-	if err != nil {
-		srv.Logger.Error("Specified timeout '%s' is invalid!", *cliTimeout)
-		flag.Usage()
-		os.Exit(ExitArgument)
+	if *cliTimeout != "" {
+		timeout, err := time.ParseDuration(*cliTimeout)
+		if err != nil {
+			srv.Logger.Errorf("Specified timeout '%s' is invalid!", *cliTimeout)
+			flag.Usage()
+			os.Exit(ExitArgument)
+		}
+		if timeout != 0 && timeout < 1*time.Second {
+			srv.Logger.Info("Setting timeout to '1s', specifed duration was too short")
+			timeout = 1 * time.Second
+		}
+		srv.timeout = timeout
 	}
-	if timeout != 0 && timeout < 1*time.Second {
-		srv.Logger.Info("Setting timeout to '1s', specifed duration was too short")
-		timeout = 1 * time.Second
-	}
-	srv.timeout = timeout
+
 	srv.useAuth = true
 
 	// when wss:// is set, we are using TLS to secure the connection.
