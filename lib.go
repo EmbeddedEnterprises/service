@@ -721,18 +721,36 @@ func (e *Error) Error() string {
 
 // CallerID represents a caller of a wamp RPC invocation
 type CallerID struct {
-	Session  wamp.ID  `mapstructure:"caller"`
-	Username string   `mapstructure:"caller_authid"`
-	Role     []string `mapstructure:"caller_authrole"`
+	Session  wamp.ID  `call:"caller" publish:"publisher"`
+	Username string   `call:"caller_authid" publish:"publisher_authid"`
+	Role     []string `call:"caller_authrole" publish:"publisher_authrole"`
+}
+
+func parse(details wamp.Dict, tagname string) (*CallerID, error) {
+	c := &CallerID{}
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:           c,
+		TagName:          tagname,
+		WeaklyTypedInput: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(details); err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 // ParseCallerID extracts caller information from the details dictionary of a wamp RPC invocation
 func ParseCallerID(details wamp.Dict) (*CallerID, error) {
-	c := &CallerID{}
-	if err := mapstructure.WeakDecode(details, c); err != nil {
-		return nil, err
-	}
-	return c, nil
+	return parse(details, "call")
+}
+
+// ParsePublisherID extracts caller information from the details dictionary of a wamp publication
+func ParsePublisherID(details wamp.Dict) (*CallerID, error) {
+	return parse(details, "publish")
 }
 
 // HasAnyRole checks whether the caller object has any of the specified roles
