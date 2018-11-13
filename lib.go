@@ -13,6 +13,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -467,7 +468,7 @@ func (srv *Service) Connect() {
 //
 // 2. The client connection failed to close.
 func (srv *Service) Run() {
-	defer srv.Client.Close()
+	defer FunctionTimeout(srv.Client.Close, 1*time.Second)
 
 	sigintChannel := make(chan os.Signal, 1)
 	signal.Notify(sigintChannel, os.Interrupt)
@@ -490,11 +491,6 @@ func (srv *Service) Run() {
 		srv.Logger.Info("Connection lost, exiting")
 	case <-clientClose:
 		srv.Logger.Info("Ping failed, exiting")
-		go func() {
-			if err := srv.Client.Close(); err != nil {
-				srv.Logger.Warningf("Failed to close client, ignoring: %v", err)
-			}
-		}()
 	}
 	close(pingClose)
 	srv.Logger.Info("Leaving main loop")
@@ -568,13 +564,13 @@ outer:
 		case <-closePing:
 			break outer
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), srv.pingInterval)
-			if _, err := srv.Client.Call(ctx, srv.pingEndpoint, nil, nil, nil, ""); err != nil {
-				cancel()
-				srv.Logger.Criticalf("Ping failed, exiting! %v", err)
+			if err := FunctionTimeout(func() error {
+				_, err := srv.Client.Call(context.Background(), srv.pingEndpoint, nil, nil, nil, "")
+				return err
+			}, srv.pingInterval); err != nil {
+				srv.Logger.Criticalf("Ping failed, exiting: %v", err)
 				break outer
 			}
-			cancel()
 		}
 	}
 }
@@ -770,4 +766,18 @@ func (c *CallerID) HasAnyRole(test []string) bool {
 		}
 	}
 	return false
+}
+
+// FunctionTimeout implements a high-level timeout for functions
+func FunctionTimeout(fn func() error, timeout time.Duration) error {
+	c := make(chan error, 1)
+	go func() {
+		c <- fn()
+	}()
+	select {
+	case err := <-c:
+		return err
+	case <-time.After(timeout):
+		return errors.New("timeout")
+	}
 }
