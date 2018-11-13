@@ -490,6 +490,11 @@ func (srv *Service) Run() {
 		srv.Logger.Info("Connection lost, exiting")
 	case <-clientClose:
 		srv.Logger.Info("Ping failed, exiting")
+		go func() {
+			if err := srv.Client.Close(); err != nil {
+				srv.Logger.Warningf("Failed to close client, ignoring: %v", err)
+			}
+		}()
 	}
 	close(pingClose)
 	close(clientClose)
