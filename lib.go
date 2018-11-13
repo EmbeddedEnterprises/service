@@ -472,10 +472,10 @@ func (srv *Service) Run() {
 	sigintChannel := make(chan os.Signal, 1)
 	signal.Notify(sigintChannel, os.Interrupt)
 
-	pingClose := make(chan struct{}, 1)
-
+	pingClose := make(chan struct{})
+	clientClose := make(chan struct{})
 	if srv.pingEnabled {
-		go srv.runPing(pingClose)
+		go srv.runPing(pingClose, clientClose)
 	}
 
 	srv.Logger.Info("Entering main loop")
@@ -488,8 +488,11 @@ func (srv *Service) Run() {
 
 	case <-srv.Client.Done():
 		srv.Logger.Info("Connection lost, exiting")
+	case <-clientClose:
+		srv.Logger.Info("Ping failed, exiting")
 	}
 	close(pingClose)
+	close(clientClose)
 	srv.Logger.Info("Leaving main loop")
 	srv.Logger.Info("Bye")
 }
@@ -552,7 +555,7 @@ func (srv *Service) SubscribeAll(events map[string]EventSubscription) *Subscript
 	return nil
 }
 
-func (srv *Service) runPing(closePing chan struct{}) {
+func (srv *Service) runPing(closePing, closeClient chan struct{}) {
 	ticker := time.NewTicker(srv.pingInterval)
 outer:
 	for {
@@ -564,7 +567,7 @@ outer:
 			if _, err := srv.Client.Call(ctx, srv.pingEndpoint, nil, nil, nil, ""); err != nil {
 				cancel()
 				srv.Logger.Criticalf("Ping failed, exiting! %v", err)
-				srv.Client.Close()
+				close(closeClient)
 				break outer
 			}
 			cancel()
