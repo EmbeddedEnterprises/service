@@ -497,7 +497,6 @@ func (srv *Service) Run() {
 		}()
 	}
 	close(pingClose)
-	close(clientClose)
 	srv.Logger.Info("Leaving main loop")
 	srv.Logger.Info("Bye")
 }
@@ -562,6 +561,7 @@ func (srv *Service) SubscribeAll(events map[string]EventSubscription) *Subscript
 
 func (srv *Service) runPing(closePing, closeClient chan struct{}) {
 	ticker := time.NewTicker(srv.pingInterval)
+	defer close(closeClient)
 outer:
 	for {
 		select {
@@ -572,7 +572,6 @@ outer:
 			if _, err := srv.Client.Call(ctx, srv.pingEndpoint, nil, nil, nil, ""); err != nil {
 				cancel()
 				srv.Logger.Criticalf("Ping failed, exiting! %v", err)
-				close(closeClient)
 				break outer
 			}
 			cancel()

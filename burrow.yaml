@@ -1,5 +1,5 @@
 name: service
-version: 0.17.1
+version: 0.17.2
 description: The robulab service library is a convenience wrapper for easy microservice
   creation.
 authors:
