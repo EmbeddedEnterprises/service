@@ -111,7 +111,7 @@ const EnvPingInterval string = "SERVICE_PING_INTERVAL"
 const EnvPingEndpoint string = "SERVICE_PING_ENDPOINT"
 
 // Version defines the git tag this code is built with
-const Version string = "0.16.0"
+const Version string = "0.18.0"
 
 // Service is a struct that holds all state that is needed to run the service.
 // An instance of this struct is the main object that is used to communicate with the
